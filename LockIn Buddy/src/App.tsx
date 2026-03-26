@@ -22,11 +22,7 @@ function App() {
       {showWelcome ? (
         <WelcomeScreen onContinue={() => setShowWelcome(false)} />
       ) : (
-        <MainPage
-          activeMode={activeMode}
-          onModeChange={setActiveMode}
-          timerLength={theme.timerLength}
-        />
+        <MainPage activeMode={activeMode} onModeChange={setActiveMode} />
       )}
     </div>
   );
