@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import ModeSelector from "./ModeSelector";
 import TimerPanel from "./TimerPanel";
 import RunningScreen from "./RunningScreen";
+import TriggerScreen from "./TriggerScreen";
 import { ButtonMode } from "./TypeButton";
 import { themeByMode } from "../modes/themeByMode";
 import { useTimer } from "../hooks/useTimer";
+import type { TriggerEvent } from "../triggers/types";
 
 export default function MainPage({
   activeMode,
@@ -14,8 +16,10 @@ export default function MainPage({
   onModeChange: (mode: ButtonMode) => void;
 }) {
   const [isRunningScreen, setIsRunningScreen] = useState(false);
+  const [activeTrigger, setActiveTrigger] = useState<TriggerEvent | null>(null);
+  const [resumeAfterTrigger, setResumeAfterTrigger] = useState(false);
 
-  const { minutes, seconds, isRunning, isFinished, start, toggle, reset } = useTimer(
+  const { minutes, seconds, isRunning, isFinished, start, pause, toggle, reset } = useTimer(
     themeByMode[activeMode].timerLength,
   );
 
@@ -33,11 +37,42 @@ export default function MainPage({
   };
 
   const handleSkip = () => {
+    setActiveTrigger(null);
     setIsRunningScreen(false);
     reset();
   };
 
+  const handleTrigger = (event: TriggerEvent) => {
+    setResumeAfterTrigger(isRunning);
+    pause();
+    setActiveTrigger(event);
+  };
+
+  useEffect(() => {
+    if (!activeTrigger) return;
+
+    const ms = themeByMode[activeMode].triggerDurationMs[activeTrigger];
+    const id = window.setTimeout(() => {
+      setActiveTrigger(null);
+      if (resumeAfterTrigger) start();
+      setResumeAfterTrigger(false);
+    }, ms);
+
+    return () => window.clearTimeout(id);
+  }, [activeMode, activeTrigger, resumeAfterTrigger, start]);
+
   if (isRunningScreen) {
+    if (activeTrigger) {
+      return (
+        <TriggerScreen
+          mode={activeMode}
+          trigger={activeTrigger}
+          minutes={minutes}
+          seconds={seconds}
+        />
+      );
+    }
+
     return (
       <RunningScreen
         mode={activeMode}
@@ -46,6 +81,7 @@ export default function MainPage({
         isRunning={isRunning}
         onTogglePause={toggle}
         onSkip={handleSkip}
+        onTrigger={handleTrigger}
       />
     );
   }

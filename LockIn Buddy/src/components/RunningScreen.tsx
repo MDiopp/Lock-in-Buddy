@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import type { ButtonMode } from "./TypeButton";
 import skipSvg from "../assets/skip.svg";
 import lockinFaceSvg from "../assets/lockinFace.svg";
 import shortbreakFaceSvg from "../assets/shortbreakFace.svg";
 import longbreakFaceSvg from "../assets/longbreakFace.svg";
+import type { TriggerEvent } from "../triggers/types";
 
 function formatTime(minutes: number, seconds: number) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
@@ -63,6 +65,7 @@ export default function RunningScreen({
   isRunning,
   onTogglePause,
   onSkip,
+  onTrigger,
 }: {
   mode: ButtonMode;
   minutes: number;
@@ -70,8 +73,21 @@ export default function RunningScreen({
   isRunning: boolean;
   onTogglePause: () => void;
   onSkip: () => void;
+  onTrigger: (event: TriggerEvent) => void;
 }) {
   const ui = runningUiByMode[mode];
+
+  // Quick keyboard triggers for testing until event wiring is added.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "s") onTrigger("success");
+      if (e.key === "1") onTrigger("mad1");
+      if (e.key === "2") onTrigger("mad2");
+      if (e.key === "3") onTrigger("mad3");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onTrigger]);
 
   return (
     <main className={`${ui.container} relative`}>
