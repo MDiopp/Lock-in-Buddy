@@ -21,16 +21,16 @@ For React: Node.js https://nodejs.org/en/download
 
 ### Setup
 
-# Clone the repo
+### Clone the repo
 `git clone https://github.com/your-username/lockin-buddy.git`
 
-# Navigate into the project
+### Navigate into the project
 `cd LockIn\ Buddy/`
 
-# Install frontend dependencies
+### Install frontend dependencies
 `npm install`
 
-# Run the Tauri app (dev mode)
+### Run the Tauri app (dev mode)
 `npm run tauri dev`
 
 ---
