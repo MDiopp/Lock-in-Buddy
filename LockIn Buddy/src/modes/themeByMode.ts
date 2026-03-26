@@ -14,7 +14,7 @@ export const themeByMode: Record<
     darkerColor: "#4BBBA2",
     lighterColor: "#B6FFC7",
     lightestColor: "#EBFFF0",
-    timerLength: 20,
+    timerLength: 25,
   },
   shortBreak: {
     darkerColor: "#4BAABB",
@@ -26,7 +26,7 @@ export const themeByMode: Record<
     darkerColor: "#4B70BB",
     lighterColor: "#B6CEFF",
     lightestColor: "#EBFFF0",
-    timerLength: 10,
+    timerLength: 15,
   },
 };
 
