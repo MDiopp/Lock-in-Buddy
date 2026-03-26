@@ -1,5 +1,8 @@
 import type { ButtonMode } from "./TypeButton";
 import skipSvg from "../assets/skip.svg";
+import lockinFaceSvg from "../assets/lockinFace.svg";
+import shortbreakFaceSvg from "../assets/shortbreakFace.svg";
+import longbreakFaceSvg from "../assets/longbreakFace.svg";
 
 function formatTime(minutes: number, seconds: number) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
@@ -18,6 +21,9 @@ const runningUiByMode: Record<
   {
     container: string;
     panel: string;
+    face: string;
+    faceProperties: string;
+    facePosition: string;
   }
 > = {
   lockIn: {
@@ -25,6 +31,9 @@ const runningUiByMode: Record<
       "flex h-screen flex-col items-center justify-center bg-[var(--customGreen)] px-6 transition-colors duration-300 ease-in-out",
     panel:
       "face box-border flex h-[min(70vh,38rem)] w-full max-w-[min(92vw,30rem)] flex-col rounded-xl bg-[var(--lighterGreen)] p-[clamp(0.5rem,3cqw,1.75rem)] [container-type:inline-size] transition-colors duration-300 ease-in-out",
+    face: lockinFaceSvg,
+    faceProperties: "w-50 h-50",
+    facePosition: "top-30 left-50",
   },
   
   shortBreak: {
@@ -32,12 +41,18 @@ const runningUiByMode: Record<
       "flex h-screen flex-col items-center justify-center bg-[var(--customGreen)] px-6 transition-colors duration-300 ease-in-out",
     panel:
       "face box-border flex h-[min(70vh,38rem)] w-full max-w-[min(92vw,30rem)] flex-col rounded-xl bg-[var(--lighterGreen)] p-[clamp(0.5rem,3cqw,1.75rem)] [container-type:inline-size] transition-colors duration-300 ease-in-out",
+    face: shortbreakFaceSvg,
+    faceProperties: "w-80 h-80",
+    facePosition: "",
   },
   longBreak: {
     container:
       "flex h-screen flex-col items-center justify-center bg-[var(--customGreen)] px-6 transition-colors duration-300 ease-in-out",
     panel:
       "face box-border flex h-[min(70vh,38rem)] w-full max-w-[min(92vw,30rem)] flex-col rounded-xl bg-[var(--lighterGreen)] p-[clamp(0.5rem,3cqw,1.75rem)] [container-type:inline-size] transition-colors duration-300 ease-in-out",
+    face: longbreakFaceSvg,
+    faceProperties: "w-full h-full",
+    facePosition: "top-40 left-0",
   },
 };
 
@@ -81,9 +96,14 @@ export default function RunningScreen({
         </div>
       </div>
 
-      {/* Centered content: unaffected by overlay controls */}
       <div className="flex w-full flex-col items-center gap-y-8">
         <div className={ui.panel} />
+          <div className={`absolute ${ui.facePosition}`}>
+            <img
+              src={ui.face}
+              className={`pointer-events-none ${ui.faceProperties}`}
+            ></img>
+          </div>
         <div className={timeText}>{formatTime(minutes, seconds)}</div>
       </div>
     </main>
