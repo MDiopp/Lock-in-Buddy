@@ -17,25 +17,28 @@ A productivity-focused robot buddy paired with a desktop app designed to help us
 
 ### Prerequisites
 For Tauri: https://tauri.app/start/prerequisites/
+
 For React: Node.js https://nodejs.org/en/download
 
 ### Setup
 
-### Clone the repo
-`git clone https://github.com/your-username/lockin-buddy.git`
+```bash
+# Clone the repo
+git clone https://github.com/your-username/lockin-buddy.git
 
-### Navigate into the project
-`cd LockIn\ Buddy/`
+# Navigate into the project
+cd LockIn\ Buddy/
 
-### Install frontend dependencies
-`npm install`
+# Install frontend dependencies
+npm install
 
-### Run the Tauri app (dev mode)
-`npm run tauri dev`
+# Run the Tauri app (dev mode)
+npm run tauri dev
+```
 
 ---
 
-##Disclaimer
+## Disclaimer
 
 This project was created for **KnightHacks Project Launch 2026** solely for education purposes.
 
