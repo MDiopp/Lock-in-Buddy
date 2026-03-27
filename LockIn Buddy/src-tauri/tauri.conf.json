@@ -15,10 +15,8 @@
         "title": "LockInBuddy",
         "width": 600,
         "height": 450,
-        "maxWidth": 600,
-        "maxHeight": 450,
-        "minWidth": 600,
-        "minHeight": 450,
+        "minWidth": 450,
+        "minHeight": 300,
         "resizable": true
       }
     ],

@@ -48,21 +48,27 @@ function App() {
     const soundBuffer = soundBuffersRef.current[soundKey];
     if (!audioCtx || !soundBuffer) return;
 
-    if (audioCtx.state === "suspended") {
-      void audioCtx.resume();
-    }
+    const startPlayback = () => {
+      const source = audioCtx.createBufferSource();
+      source.buffer = soundBuffer;
+      const gain = audioCtx.createGain();
+      gain.gain.value = SOUND_CONFIG[soundKey].volume;
+      source.connect(gain);
+      gain.connect(audioCtx.destination);
+      source.start(0);
+    };
 
-    const source = audioCtx.createBufferSource();
-    source.buffer = soundBuffer;
-    const gain = audioCtx.createGain();
-    gain.gain.value = SOUND_CONFIG[soundKey].volume;
-    source.connect(gain);
-    gain.connect(audioCtx.destination);
-    source.start(0);
+    // If the context is still suspended, `start(0)` can feel delayed or not fire until
+    // `resume()` completes — chain playback to the resume promise.
+    if (audioCtx.state === "suspended") {
+      void audioCtx.resume().then(startPlayback);
+    } else {
+      startPlayback();
+    }
   };
 
   useEffect(() => {
-    const audioCtx = new AudioContext();
+    const audioCtx = new AudioContext({ latencyHint: "interactive" });
     audioCtxRef.current = audioCtx;
 
     let disposed = false;

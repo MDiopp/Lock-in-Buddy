@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import ModeSelector from "./ModeSelector";
 import TimerPanel from "./TimerPanel";
 import RunningScreen from "./RunningScreen";
-import TriggerScreen from "./TriggerScreen";
 import { ButtonMode } from "./TypeButton";
 import { themeByMode } from "../modes/themeByMode";
 import { useTimer } from "../hooks/useTimer";
@@ -65,17 +64,6 @@ export default function MainPage({
   }, [activeMode, activeTrigger, reset, resumeAfterTrigger, start]);
 
   if (isRunningScreen) {
-    if (activeTrigger) {
-      return (
-        <TriggerScreen
-          mode={activeMode}
-          trigger={activeTrigger}
-          minutes={minutes}
-          seconds={seconds}
-        />
-      );
-    }
-
     return (
       <RunningScreen
         mode={activeMode}
@@ -86,6 +74,7 @@ export default function MainPage({
         onSkip={handleSkip}
         onTrigger={handleTrigger}
         isFinished={isFinished}
+        trigger={activeTrigger}
       />
     );
   }
