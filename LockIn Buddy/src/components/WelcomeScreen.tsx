@@ -12,7 +12,7 @@ export default function WelcomeScreen({
         <img
           src={plusSvg}
           alt=""
-          className="h-auto w-full max-h-48 object-contain object-right md:max-h-64 lg:max-h-80"
+          className="h-auto w-full min-h-20 min-w-7 max-h-48 object-contain object-right md:max-h-64 lg:max-h-80"
         />
       </div>
       <div className="flex w-full min-w-0 max-w-[min(32rem,90vw)] shrink-0 flex-col items-center px-2 text-center sm:px-4">
@@ -39,7 +39,7 @@ export default function WelcomeScreen({
         <img
           src={buttonsSvg}
           alt=""
-          className="h-auto w-full max-h-48 object-contain object-left md:max-h-64 lg:max-h-80"
+          className="h-auto w-full min-h-20 min-w-7 max-h-48 object-contain object-left md:max-h-64 lg:max-h-80"
         />
       </div>
     </main>
