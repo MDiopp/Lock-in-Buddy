@@ -11,9 +11,11 @@ import type { TriggerEvent } from "../modes/types";
 export default function MainPage({
   activeMode,
   onModeChange,
+  onTriggerInitiated,
 }: {
   activeMode: ButtonMode;
   onModeChange: (mode: ButtonMode) => void;
+  onTriggerInitiated: (trigger: TriggerEvent) => void;
 }) {
   const [isRunningScreen, setIsRunningScreen] = useState(false);
   const [activeTrigger, setActiveTrigger] = useState<TriggerEvent | null>(null);
@@ -38,6 +40,7 @@ export default function MainPage({
     setResumeAfterTrigger(isRunning);
     pause();
     setActiveTrigger(event);
+    onTriggerInitiated(event);
   };
 
   useEffect(() => {

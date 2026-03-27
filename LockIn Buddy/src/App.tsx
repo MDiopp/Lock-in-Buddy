@@ -5,18 +5,61 @@ import WelcomeScreen from "./components/WelcomeScreen";
 import MainPage from "./components/MainPage";
 import type { ButtonMode } from "./components/TypeButton";
 import { themeByMode } from "./modes/themeByMode";
+import type { TriggerEvent } from "./modes/types";
 import buttonClickMp3 from "./assets/ButtonClick.mp3";
 import startPressMp3 from "./assets/startPress.mp3";
+import successSoundMp3 from "./assets/successSound.mp3";
+import mad1SoundMp3 from "./assets/mad1Sound.mp3";
+import mad2SoundMp3 from "./assets/mad2Sound.mp3";
+import mad3SoundMp3 from "./assets/mad3Sound.mp3";
 
-const CLICK_VOLUME = 0.35;
-const START_VOLUME = 0.52;
+type SoundKey =
+  | "buttonClick"
+  | "startPress"
+  | "triggerSuccess"
+  | "triggerMad1"
+  | "triggerMad2"
+  | "triggerMad3";
+
+const SOUND_CONFIG: Record<SoundKey, { src: string; volume: number }> = {
+  buttonClick: { src: buttonClickMp3, volume: 0.35 },
+  startPress: { src: startPressMp3, volume: 0.52 },
+  triggerSuccess: { src: successSoundMp3, volume: 0.5 },
+  triggerMad1: { src: mad1SoundMp3, volume: 0.5 },
+  triggerMad2: { src: mad2SoundMp3, volume: 0.5 },
+  triggerMad3: { src: mad3SoundMp3, volume: 0.5 },
+};
+
+const TRIGGER_SOUND_BY_EVENT: Record<TriggerEvent, SoundKey> = {
+  success: "triggerSuccess",
+  mad1: "triggerMad1",
+  mad2: "triggerMad2",
+  mad3: "triggerMad3",
+};
 
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [activeMode, setActiveMode] = useState<ButtonMode>("lockIn");
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const clickBufferRef = useRef<AudioBuffer | null>(null);
-  const startBufferRef = useRef<AudioBuffer | null>(null);
+  const soundBuffersRef = useRef<Partial<Record<SoundKey, AudioBuffer>>>({});
+
+  const playSound = (soundKey: SoundKey) => {
+    const audioCtx = audioCtxRef.current;
+    const soundBuffer = soundBuffersRef.current[soundKey];
+    if (!audioCtx || !soundBuffer) return;
+
+    if (audioCtx.state === "suspended") {
+      void audioCtx.resume();
+    }
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = soundBuffer;
+    const gain = audioCtx.createGain();
+    gain.gain.value = SOUND_CONFIG[soundKey].volume;
+    source.connect(gain);
+    gain.connect(audioCtx.destination);
+    source.start(0);
+  };
 
   useEffect(() => {
     const audioCtx = new AudioContext();
@@ -36,21 +79,19 @@ function App() {
     };
 
     const loadAllBuffers = async () => {
-      const [clickBuffer, startBuffer] = await Promise.all([
-        loadBuffer(buttonClickMp3),
-        loadBuffer(startPressMp3),
-      ]);
+      const entries = Object.entries(SOUND_CONFIG) as Array<[SoundKey, { src: string }]>;
+      const loaded = await Promise.all(entries.map(async ([key, config]) => [key, await loadBuffer(config.src)] as const));
       if (disposed) return;
-      clickBufferRef.current = clickBuffer;
-      startBufferRef.current = startBuffer;
+      soundBuffersRef.current = Object.fromEntries(
+        loaded.filter(([, buffer]) => !!buffer),
+      ) as Partial<Record<SoundKey, AudioBuffer>>;
     };
 
     void loadAllBuffers();
 
     return () => {
       disposed = true;
-      clickBufferRef.current = null;
-      startBufferRef.current = null;
+      soundBuffersRef.current = {};
       void audioCtx.close();
       audioCtxRef.current = null;
     };
@@ -64,27 +105,17 @@ function App() {
       const clickedButton = target.closest("button");
       if (!clickedButton || clickedButton.hasAttribute("disabled")) return;
 
-      const audioCtx = audioCtxRef.current;
       const isStartButton = clickedButton.classList.contains("startButton");
-      const soundBuffer = isStartButton ? startBufferRef.current : clickBufferRef.current;
-      if (!audioCtx || !soundBuffer) return;
-
-      if (audioCtx.state === "suspended") {
-        void audioCtx.resume();
-      }
-
-      const source = audioCtx.createBufferSource();
-      source.buffer = soundBuffer;
-      const gain = audioCtx.createGain();
-      gain.gain.value = isStartButton ? START_VOLUME : CLICK_VOLUME;
-      source.connect(gain);
-      gain.connect(audioCtx.destination);
-      source.start(0);
+      playSound(isStartButton ? "startPress" : "buttonClick");
     };
 
     window.addEventListener("pointerdown", handlePointerDown, true);
     return () => window.removeEventListener("pointerdown", handlePointerDown, true);
   }, []);
+
+  const handleTriggerInitiated = (trigger: TriggerEvent) => {
+    playSound(TRIGGER_SOUND_BY_EVENT[trigger]);
+  };
 
   const theme = themeByMode[activeMode];
   const themeStyle = {
@@ -98,7 +129,11 @@ function App() {
       {showWelcome ? (
         <WelcomeScreen onContinue={() => setShowWelcome(false)} />
       ) : (
-        <MainPage activeMode={activeMode} onModeChange={setActiveMode} />
+        <MainPage
+          activeMode={activeMode}
+          onModeChange={setActiveMode}
+          onTriggerInitiated={handleTriggerInitiated}
+        />
       )}
     </div>
   );
