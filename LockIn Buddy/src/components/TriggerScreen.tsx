@@ -1,10 +1,21 @@
 import type { ButtonMode } from "./TypeButton";
-import type { TriggerEvent } from "../triggers/types";
+import type { TriggerEvent } from "../modes/types";
+import type { CSSProperties } from "react";
 
 import youdiditFaceSvg from "../assets/youdiditFace.svg";
 import mad1FaceSvg from "../assets/mad1Face.svg";
 import mad2FaceSvg from "../assets/mad2Face.svg";
 import mad3FaceSvg from "../assets/mad3Face.svg";
+
+// confetti
+const confettiColors = ["#FDE047", "#F97316", "#22D3EE", "#C084FC", "#FB7185", "#34D399"];
+const successConfetti = Array.from({ length: 56 }, (_, i) => ({
+  left: `${(i * 97) % 100}%`,
+  duration: `${3 + ((i * 37) % 30) / 10}s`,
+  size: `${8 + (i % 6)}px`,
+  color: confettiColors[i % confettiColors.length],
+  rotate: `${(i * 29) % 360}deg`,
+}));
 
 const triggerUi: Record<TriggerEvent, { 
   title: string; 
@@ -64,10 +75,31 @@ export default function TriggerScreen({
   seconds: number;
 }) {
   const ui = triggerUi[trigger];
+  const showConfetti = trigger === "success";
 
   return (
     <main className={`relative flex h-screen flex-col items-center justify-cente px-6 transition-colors duration-300 ease-in-out`}
           style={{ backgroundColor: ui.bgTint }}  >
+        {showConfetti && (
+          <div className="confetti-layer" aria-hidden="true">
+            {successConfetti.map((piece, index) => (
+              <span
+                key={index}
+                className="confetti-piece"
+                style={
+                  {
+                    left: piece.left,
+                    width: piece.size,
+                    height: piece.size,
+                    backgroundColor: piece.color,
+                    rotate: piece.rotate,
+                    animationDuration: piece.duration,
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </div>
+        )}
         <div className="text-4xl text-[var(--classicWhite)] m-3">
           {ui.title}
         </div>

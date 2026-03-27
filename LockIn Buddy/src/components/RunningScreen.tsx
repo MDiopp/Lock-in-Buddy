@@ -4,20 +4,22 @@ import skipSvg from "../assets/skip.svg";
 import lockinFaceSvg from "../assets/lockinFace.svg";
 import shortbreakFaceSvg from "../assets/shortbreakFace.svg";
 import longbreakFaceSvg from "../assets/longbreakFace.svg";
-import type { TriggerEvent } from "../triggers/types";
+import type { TriggerEvent } from "../modes/types";
 
 function formatTime(minutes: number, seconds: number) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+// Constant styles
 const timeText = "absolute bottom-4 text-[clamp(3rem,9vw,6rem)] text-[var(--classicWhite)] flex";
 const buttonBase =
-  "rounded-xl px-8 py-1 text-[clamp(1.25rem,2.5vw,1.75rem)] font-medium transition-[color,box-shadow,background-color] duration-300 ease-in-out";
+  "rounded-xl px-8 py-1 text-[clamp(1.25rem,2.5vw,1.75rem)] font-medium transition-[color,box-shadow,background-color,transform] duration-300 ease-in-out hover:scale-[1.03]";
 const pauseButton =
   "cursor-pointer bg-[var(--classicWhite)] text-[var(--customGreen)] box-shadow shadow-lg";
 const skipButton =
   "bg-transparent text-[var(--classicWhite)]";
 
+  // dynamic styles
 const runningUiByMode: Record<
   ButtonMode,
   {
@@ -58,6 +60,7 @@ const runningUiByMode: Record<
   },
 };
 
+// running screen itself
 export default function RunningScreen({
   mode,
   minutes,
@@ -66,16 +69,23 @@ export default function RunningScreen({
   onTogglePause,
   onSkip,
   onTrigger,
+  isFinished,
 }: {
   mode: ButtonMode;
   minutes: number;
   seconds: number;
   isRunning: boolean;
+  isFinished: boolean;
   onTogglePause: () => void;
   onSkip: () => void;
   onTrigger: (event: TriggerEvent) => void;
 }) {
   const ui = runningUiByMode[mode];
+
+  // if it's done, display the success screen
+  useEffect(() => {
+    if (isFinished == true) onTrigger("success");
+  }, [isFinished]);
 
   // Quick keyboard triggers for testing until event wiring is added.
   useEffect(() => {

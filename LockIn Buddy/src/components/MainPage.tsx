@@ -6,7 +6,7 @@ import TriggerScreen from "./TriggerScreen";
 import { ButtonMode } from "./TypeButton";
 import { themeByMode } from "../modes/themeByMode";
 import { useTimer } from "../hooks/useTimer";
-import type { TriggerEvent } from "../triggers/types";
+import type { TriggerEvent } from "../modes/types";
 
 export default function MainPage({
   activeMode,
@@ -22,14 +22,6 @@ export default function MainPage({
   const { minutes, seconds, isRunning, isFinished, start, pause, toggle, reset } = useTimer(
     themeByMode[activeMode].timerLength,
   );
-
-  // When the timer finishes, return to the main page.
-  useEffect(() => {
-    if (!isRunningScreen) return;
-    if (!isFinished) return;
-    setIsRunningScreen(false);
-    reset();
-  }, [isFinished, isRunningScreen, reset]);
 
   const handleStart = () => {
     setIsRunningScreen(true);
@@ -53,13 +45,21 @@ export default function MainPage({
 
     const ms = themeByMode[activeMode].triggerDurationMs[activeTrigger];
     const id = window.setTimeout(() => {
+      if (activeTrigger === "success") {
+        setActiveTrigger(null);
+        setResumeAfterTrigger(false);
+        setIsRunningScreen(false);
+        reset();
+        return;
+      }
+
       setActiveTrigger(null);
       if (resumeAfterTrigger) start();
       setResumeAfterTrigger(false);
     }, ms);
 
     return () => window.clearTimeout(id);
-  }, [activeMode, activeTrigger, resumeAfterTrigger, start]);
+  }, [activeMode, activeTrigger, reset, resumeAfterTrigger, start]);
 
   if (isRunningScreen) {
     if (activeTrigger) {
@@ -82,6 +82,7 @@ export default function MainPage({
         onTogglePause={toggle}
         onSkip={handleSkip}
         onTrigger={handleTrigger}
+        isFinished={isFinished}
       />
     );
   }

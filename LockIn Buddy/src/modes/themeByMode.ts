@@ -1,5 +1,5 @@
 import type { ButtonMode } from "../components/TypeButton";
-import type { TriggerEvent } from "../triggers/types";
+import type { TriggerEvent } from "./types";
 
 // Central source of truth for each mode's theme + behavior settings.
 export const themeByMode: Record<
@@ -18,7 +18,7 @@ export const themeByMode: Record<
     lightestColor: "#EBFFF0",
     timerLength: 25,
     triggerDurationMs: {
-      success: 1200,
+      success: 3000,
       mad1: 1200,
       mad2: 1200,
       mad3: 1200,

@@ -15,7 +15,7 @@ export default function TimerPanel({
       <button
         type="button"
         onClick={onStart}
-        className="startButton cursor-pointer rounded-xl bg-[var(--classicWhite)] px-[1em] py-[0.25em] text-[2em] text-[var(--customGreen)] [box-shadow:-7px_5px_4px_0_var(--customGreen)] transition-[color,box-shadow,background-color] duration-300 ease-in-out"
+        className="startButton cursor-pointer rounded-xl bg-[var(--classicWhite)] px-[1em] py-[0.25em] text-[2em] text-[var(--customGreen)] [box-shadow:-7px_5px_4px_0_var(--customGreen)] transition-[color,box-shadow,background-color,transform] duration-300 ease-out hover:scale-[1.03]"
       >
         start
       </button>
