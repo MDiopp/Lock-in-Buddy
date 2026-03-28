@@ -1,31 +1,104 @@
-from fastapi import FastAPI, HTTPException
-from enum import Enum
-from pydantic import BaseModel, Field
-import mediapipe as mp
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import json
 
-class ModelName(str, Enum):
-    goku = "goku"
-    vegeta = "vegeta"
-    gotenks = "gotenks"
-app = FastAPI()
+from lockin_detection.faceService import FaceService
+from lockin_detection.stateMachine import StateMachine
+from lockin_detection.schemas import DetectionState, SessionResponse, StatusPayload
+
+app = FastAPI(title="LockIn Buddy API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Tauri apps use custom scheme; lock down in production
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ── Singletons ─────────────────────────────────────────────────────────────────
+face_service = FaceService(camera_index=0, debug=True)
+state_machine = StateMachine(distraction_threshold=3.0, cooldown=10.0)
+
+# Wire detection output through the state machine
+face_service.on_state_change(state_machine.feed)
+
+# Connected WebSocket clients
+_ws_clients: list[WebSocket] = []
+
+
+async def _broadcast(state: DetectionState):
+    """Push state change to all connected WebSocket clients."""
+    payload = json.dumps({"state": state.value})
+    disconnected = []
+    for ws in _ws_clients:
+        try:
+            await ws.send_text(payload)
+        except Exception:
+            disconnected.append(ws)
+    for ws in disconnected:
+        _ws_clients.remove(ws)
+
+
+def _on_alert():
+    """Called by StateMachine when ALERT fires (runs in detection thread)."""
+    asyncio.run_coroutine_threadsafe(
+        _broadcast(DetectionState.ALERT), asyncio.get_event_loop()
+    )
+
+
+state_machine._on_alert = _on_alert
+
+
+def _on_state_change_ws(new_state: DetectionState):
+    """Forward every state change to WebSocket clients."""
+    try:
+        loop = asyncio.get_event_loop()
+        asyncio.run_coroutine_threadsafe(_broadcast(new_state), loop)
+    except RuntimeError:
+        pass
+
+
+# Re-register callback to also broadcast all state changes (not just alerts)
+face_service.on_state_change(lambda s: (state_machine.feed(s), _on_state_change_ws(state_machine.state)))
+
+# ── Routes ─────────────────────────────────────────────────────────────────────
 
 @app.get("/")
 async def root():
-    return {"message" : "Hello World"}
+    return {"message": "LockIn Buddy API is running"}
 
-@app.get("/items/{item_id}")
-async def read_item(item_id: int) -> dict:
-    return {"item_id" : item_id}
 
-@app.get("/models/{model_name}")
-async def do_attack(model_name: ModelName) -> dict:
-    if model_name == ModelName.goku:
-        return {"Goku: fight me, if you're ready to die...": "Dragon fist!!!!"}
-    elif model_name == ModelName.vegeta:
-        return {"Vegeta: In near moments, all you'll be feeling, is oblivion!!!": "Final Flash!!!!!"}
-    elif model_name == ModelName.gotenks:
-        return {"Gotenks: Yea just leave everything to me": "Super ghost kamikaze attack!!!"}
+@app.get("/status", response_model=StatusPayload)
+async def get_status():
+    state = state_machine.state
+    return StatusPayload(state=state)
 
-@app.get("/items/")
-async def read_item(skip: int = 0, limit: int = 10) -> dict:
-    return {"result" : skip + limit}
+
+@app.post("/session/start", response_model=SessionResponse)
+async def start_session():
+    face_service.start()
+    state_machine.reset()
+    return SessionResponse(running=True, message="Session started")
+
+
+@app.post("/session/stop", response_model=SessionResponse)
+async def stop_session():
+    face_service.stop()
+    state_machine.reset()
+    return SessionResponse(running=False, message="Session stopped")
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    _ws_clients.append(websocket)
+    # Send current state immediately on connect
+    await websocket.send_text(json.dumps({"state": state_machine.state.value}))
+    try:
+        while True:
+            # Keep connection alive; client can send pings if needed
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        if websocket in _ws_clients:
+            _ws_clients.remove(websocket)
