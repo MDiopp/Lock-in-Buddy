@@ -1,5 +1,6 @@
 import plusSvg from "../assets/Plus.svg";
 import buttonsSvg from "../assets/buttons.svg";
+import { requestNotificationPermission } from "../hooks/notifications";
 
 export default function WelcomeScreen({
   onContinue,
@@ -12,7 +13,7 @@ export default function WelcomeScreen({
         <img
           src={plusSvg}
           alt=""
-          className="h-auto w-full max-h-48 object-contain object-right md:max-h-64 lg:max-h-80"
+          className="h-auto w-full min-h-20 min-w-7 max-h-48 object-contain object-right md:max-h-64 lg:max-h-80"
         />
       </div>
       <div className="flex w-full min-w-0 max-w-[min(32rem,90vw)] shrink-0 flex-col items-center px-2 text-center sm:px-4">
@@ -29,8 +30,11 @@ export default function WelcomeScreen({
         </p>
         <button
           type="button"
-          onClick={onContinue}
-          className="cursor-pointer mt-[clamp(1.75rem,4vw,2.5rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-colors duration-300 ease-in-out hover:brightness-95 active:scale-[0.98]"
+          onClick={() => {
+            void requestNotificationPermission();
+            onContinue();
+          }}
+          className="cursor-pointer mt-[clamp(1.75rem,4vw,2.5rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
         >
           Continue
         </button>
@@ -39,7 +43,7 @@ export default function WelcomeScreen({
         <img
           src={buttonsSvg}
           alt=""
-          className="h-auto w-full max-h-48 object-contain object-left md:max-h-64 lg:max-h-80"
+          className="h-auto w-full min-h-20 min-w-7 max-h-48 object-contain object-left md:max-h-64 lg:max-h-80"
         />
       </div>
     </main>

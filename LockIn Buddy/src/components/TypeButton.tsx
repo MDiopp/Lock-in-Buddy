@@ -18,7 +18,7 @@ function TypeButton({
       type="button"
       onClick={onClick}
       className={[
-        "cursor-pointer rounded-xl px-[1em] py-[0.25em] text-[1.3em] transition",
+        "cursor-pointer rounded-xl px-[1em] py-[0.25em] text-[1.3em] transition-transform duration-200 ease-out hover:scale-[1.03]",
         isActive
           ? "bg-[var(--customGreen)] text-[var(--classicWhite)]"
           : "bg-hidden text-[var(--customGreen)]",

@@ -21,3 +21,30 @@
   --classicWhite: #EBFFF0;
   --black: #0f0f0f;
 }
+
+.confetti-layer {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 0px;
+  border-radius: 0px;
+  opacity: 0.95;
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, 0vh, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(0, 115vh, 0) rotate(540deg);
+  }
+}
