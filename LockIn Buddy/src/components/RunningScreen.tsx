@@ -197,7 +197,7 @@ export default function RunningScreen({
       </div>
 
       <div
-        className="row-start-2 face relative box-border flex h-[min(70vh,38rem)] w-full max-w-[min(92vw,30rem)] flex-col justify-self-center rounded-xl bg-[var(--lighterGreen)] p-[clamp(0.5rem,3cqw,1.75rem)] [container-type:inline-size] transition-colors duration-300 ease-in-out"
+        className="row-start-2 face relative box-border flex h-[min(70vh,38rem)] w-full max-w-[min(92vw,80rem)] flex-col justify-self-center rounded-xl bg-[var(--lighterGreen)] p-[clamp(0.5rem,3cqw,1.75rem)] [container-type:inline-size] transition-colors duration-300 ease-in-out"
         style={activeTriggerUi ? { backgroundColor: activeTriggerUi.panelTint } : undefined}
       >
         {/* Face centered in the card */}

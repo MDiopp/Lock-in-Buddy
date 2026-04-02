@@ -11,13 +11,15 @@ fn greet(name: &str) -> String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .on_window_event(|window, event| {
             if let WindowEvent::Resized(size) = event {
                 let width = size.width.max(1);
                 let expected_height = ((width as f64) / ASPECT_RATIO).round() as u32;
 
                 if expected_height != size.height {
-                    let _ = window.set_size(Size::Physical(PhysicalSize::new(width, expected_height)));
+                    let _ =
+                        window.set_size(Size::Physical(PhysicalSize::new(width, expected_height)));
                 }
             }
         })

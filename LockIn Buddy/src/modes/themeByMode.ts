@@ -16,7 +16,7 @@ export const themeByMode: Record<
     darkerColor: "#4BBBA2",
     lighterColor: "#B6FFC7",
     lightestColor: "#EBFFF0",
-    timerLength: 25,
+    timerLength: 0.1,
     triggerDurationMs: {
       success: 3000,
       mad1: 1200,

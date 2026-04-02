@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { notify } from "./notifications";
 
 export function useTimer(timerLengthMinutes: number) {
   const totalSeconds = useMemo(
@@ -8,20 +9,38 @@ export function useTimer(timerLengthMinutes: number) {
 
   const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
   const [isRunning, setIsRunning] = useState(false);
+  const completionNotifiedRef = useRef(false);
+  const prevSecondsLeftRef = useRef<number | null>(null);
 
   // Reset when mode/timer length changes.
   useEffect(() => {
     setSecondsLeft(totalSeconds);
     setIsRunning(false);
+    completionNotifiedRef.current = false;
+    prevSecondsLeftRef.current = null;
   }, [totalSeconds]);
+
+  // Fire exactly when the countdown crosses from 1 → 0 (not on every `secondsLeft === 0` render).
+  useEffect(() => {
+    const prev = prevSecondsLeftRef.current;
+    prevSecondsLeftRef.current = secondsLeft;
+
+    if (secondsLeft !== 0) {
+      completionNotifiedRef.current = false;
+      return;
+    }
+    if (totalSeconds === 0) return;
+    if (prev === null || prev <= 0) return;
+    if (completionNotifiedRef.current) return;
+
+    completionNotifiedRef.current = true;
+    setIsRunning(false);
+    void notify("Time for a break!", "Your session is done!");
+  }, [secondsLeft, totalSeconds]);
 
   // Countdown loop.
   useEffect(() => {
-    if (!isRunning) return;
-    if (secondsLeft <= 0) {
-      setIsRunning(false);
-      return;
-    }
+    if (!isRunning || secondsLeft <= 0) return;
 
     const id = window.setInterval(() => {
       setSecondsLeft((s) => Math.max(0, s - 1));
@@ -40,6 +59,8 @@ export function useTimer(timerLengthMinutes: number) {
   const reset = () => {
     setSecondsLeft(totalSeconds);
     setIsRunning(false);
+    completionNotifiedRef.current = false;
+    prevSecondsLeftRef.current = null;
   };
 
   return {

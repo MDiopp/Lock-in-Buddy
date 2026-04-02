@@ -1,3 +1,5 @@
+import { requestNotificationPermission } from "../hooks/notifications";
+
 export default function TimerPanel({
   minutes,
   seconds,
@@ -14,7 +16,10 @@ export default function TimerPanel({
       </h1>
       <button
         type="button"
-        onClick={onStart}
+        onClick={() => {
+          void requestNotificationPermission();
+          onStart();
+        }}
         className="startButton cursor-pointer rounded-xl bg-[var(--classicWhite)] px-[1em] py-[0.25em] text-[2em] text-[var(--customGreen)] [box-shadow:-7px_5px_4px_0_var(--customGreen)] transition-[color,box-shadow,background-color,transform] duration-300 ease-out hover:scale-[1.03]"
       >
         start
