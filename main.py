@@ -23,6 +23,9 @@ state_machine = StateMachine(distraction_threshold=3.0, cooldown=10.0)
 # Wire detection output through the state machine
 face_service.on_state_change(state_machine.feed)
 
+# Event loop reference (captured when the app starts)
+_loop: asyncio.AbstractEventLoop | None = None
+
 # Connected WebSocket clients
 _ws_clients: list[WebSocket] = []
 
@@ -42,9 +45,8 @@ async def _broadcast(state: DetectionState):
 
 def _on_alert():
     """Called by StateMachine when ALERT fires (runs in detection thread)."""
-    asyncio.run_coroutine_threadsafe(
-        _broadcast(DetectionState.ALERT), asyncio.get_event_loop()
-    )
+    if _loop is not None:
+        asyncio.run_coroutine_threadsafe(_broadcast(DetectionState.ALERT), _loop)
 
 
 state_machine._on_alert = _on_alert
@@ -52,15 +54,20 @@ state_machine._on_alert = _on_alert
 
 def _on_state_change_ws(new_state: DetectionState):
     """Forward every state change to WebSocket clients."""
-    try:
-        loop = asyncio.get_event_loop()
-        asyncio.run_coroutine_threadsafe(_broadcast(new_state), loop)
-    except RuntimeError:
-        pass
+    if _loop is not None:
+        asyncio.run_coroutine_threadsafe(_broadcast(new_state), _loop)
 
 
 # Re-register callback to also broadcast all state changes (not just alerts)
 face_service.on_state_change(lambda s: (state_machine.feed(s), _on_state_change_ws(state_machine.state)))
+
+# ── Startup ────────────────────────────────────────────────────────────────────
+
+@app.on_event("startup")
+async def _startup():
+    global _loop
+    _loop = asyncio.get_running_loop()
+
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 

@@ -6,19 +6,27 @@ A productivity-focused robot buddy paired with a desktop app designed to help us
 
 ## Tech Stack
 
-- React
+**Frontend**
+- React + TypeScript
 - Tauri
-- TypeScript
 - Tailwind CSS
+
+**Backend**
+- Python + FastAPI
+- MediaPipe (face landmark detection)
+- OpenCV
+- WebSockets (real-time state streaming)
 
 ---
 
-## Installtion
+## Installation
 
 ### Prerequisites
 For Tauri: https://tauri.app/start/prerequisites/
 
 For React: Node.js https://nodejs.org/en/download
+
+For Python backend: Python 3.11+ and pip
 
 ### Setup
 
@@ -35,6 +43,18 @@ npm install
 # Run the Tauri app (dev mode)
 npm run tauri dev
 ```
+
+To run the backend separately:
+
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Start the API server
+python -m uvicorn main:app --reload
+```
+
+Or use `start.bat` to launch the backend automatically.
 
 ---
 

@@ -3,73 +3,82 @@ import mediapipe as mp
 import numpy as np
 import threading
 import time
+import urllib.request
 from pathlib import Path
 from typing import Callable, Optional
 
+from mediapipe.tasks.python import BaseOptions
+from mediapipe.tasks.python.vision import (
+    FaceLandmarker,
+    FaceLandmarkerOptions,
+    ObjectDetector,
+    ObjectDetectorOptions,
+    RunningMode,
+)
+
 from .schemas import DetectionState
 
-# ── MediaPipe setup ────────────────────────────────────────────────────────────
-_mp_face_mesh = mp.solutions.face_mesh
-_mp_drawing = mp.solutions.drawing_utils
-_mp_drawing_styles = mp.solutions.drawing_styles
-
-# Landmark indices used for head-pose estimation (a minimal subset)
-# Nose tip, chin, left eye corner, right eye corner, left mouth, right mouth
-_POSE_LANDMARKS = [1, 152, 33, 263, 61, 291]
-
-# Path to phone-detection model (optional; detection skipped if file absent)
-_MODELS_DIR = Path(__file__).parent / "models"
+# ── Model paths ────────────────────────────────────────────────────────────────
+_MODELS_DIR = Path(__file__).resolve().parent / "models"
+_FACE_MODEL_PATH = _MODELS_DIR / "face_landmarker.task"
 _PHONE_MODEL_PATH = _MODELS_DIR / "efficientdet_lite0.task"
+
+_FACE_MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/"
+    "face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+)
 
 COCO_CELL_PHONE_CLASS = "cell phone"
 
+
+def _ensure_face_model() -> Path:
+    """Download the face-landmarker model if it doesn't exist yet."""
+    if _FACE_MODEL_PATH.exists():
+        return _FACE_MODEL_PATH
+    _MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"[FaceService] Downloading face_landmarker.task …")
+    urllib.request.urlretrieve(_FACE_MODEL_URL, _FACE_MODEL_PATH)
+    print(f"[FaceService] Saved to {_FACE_MODEL_PATH}")
+    return _FACE_MODEL_PATH
+
+
+# Landmark indices for simple gaze direction
+# Left eye outer corner, right eye outer corner, nose tip
+_LEFT_EYE = 33
+_RIGHT_EYE = 263
+_NOSE_TIP = 1
+_FOREHEAD = 10
+_CHIN = 152
+
 # ── Head-pose helpers ──────────────────────────────────────────────────────────
 
-def _get_head_pose(landmarks, frame_shape: tuple) -> tuple[float, float]:
-    """Return (pitch_deg, yaw_deg) from face mesh landmarks.
+def _get_face_direction(landmarks) -> tuple[float, float]:
+    """Return (yaw_ratio, pitch_ratio) using simple landmark positions.
 
-    Positive pitch  → looking down.
-    Positive yaw    → looking right.
+    yaw_ratio:   0.5 = looking straight, <0.5 = looking left, >0.5 = looking right
+    pitch_ratio: ~0.5 = looking straight, higher = looking down, lower = looking up
     """
-    h, w = frame_shape[:2]
+    nose = landmarks[_NOSE_TIP]
+    left_eye = landmarks[_LEFT_EYE]
+    right_eye = landmarks[_RIGHT_EYE]
+    forehead = landmarks[_FOREHEAD]
+    chin = landmarks[_CHIN]
 
-    image_points = np.array(
-        [(landmarks[i].x * w, landmarks[i].y * h) for i in _POSE_LANDMARKS],
-        dtype=np.float64,
-    )
+    # Yaw: where is the nose horizontally between the two eyes?
+    eye_dx = right_eye.x - left_eye.x
+    if abs(eye_dx) < 1e-6:
+        yaw_ratio = 0.5
+    else:
+        yaw_ratio = (nose.x - left_eye.x) / eye_dx
 
-    # Generic 3D model points (mm, centred on nose tip)
-    model_points = np.array(
-        [
-            (0.0, 0.0, 0.0),        # Nose tip
-            (0.0, -63.6, -12.5),    # Chin
-            (-43.3, 32.7, -26.0),   # Left eye corner
-            (43.3, 32.7, -26.0),    # Right eye corner
-            (-28.9, -28.9, -24.1),  # Left mouth corner
-            (28.9, -28.9, -24.1),   # Right mouth corner
-        ],
-        dtype=np.float64,
-    )
+    # Pitch: where is the nose vertically between forehead and chin?
+    face_dy = chin.y - forehead.y
+    if abs(face_dy) < 1e-6:
+        pitch_ratio = 0.5
+    else:
+        pitch_ratio = (nose.y - forehead.y) / face_dy
 
-    focal_length = w
-    center = (w / 2, h / 2)
-    camera_matrix = np.array(
-        [[focal_length, 0, center[0]], [0, focal_length, center[1]], [0, 0, 1]],
-        dtype=np.float64,
-    )
-    dist_coeffs = np.zeros((4, 1))
-
-    _, rotation_vec, _ = cv2.solvePnP(
-        model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE
-    )
-
-    rotation_mat, _ = cv2.Rodrigues(rotation_vec)
-    pose_mat = cv2.hconcat([rotation_mat, np.zeros((3, 1))])
-    _, _, _, _, _, _, euler_angles = cv2.decomposeProjectionMatrix(pose_mat)
-
-    pitch = float(euler_angles[0])
-    yaw = float(euler_angles[1])
-    return pitch, yaw
+    return yaw_ratio, pitch_ratio
 
 
 # ── Phone detection (optional) ─────────────────────────────────────────────────
@@ -79,16 +88,13 @@ def _try_load_phone_detector():
     if not _PHONE_MODEL_PATH.exists():
         return None
     try:
-        from mediapipe.tasks import python as mp_tasks
-        from mediapipe.tasks.python import vision as mp_vision
-
-        base_opts = mp_tasks.BaseOptions(model_asset_path=str(_PHONE_MODEL_PATH))
-        opts = mp_vision.ObjectDetectorOptions(
+        base_opts = BaseOptions(model_asset_path=str(_PHONE_MODEL_PATH))
+        opts = ObjectDetectorOptions(
             base_options=base_opts,
             score_threshold=0.4,
             max_results=5,
         )
-        return mp_vision.ObjectDetector.create_from_options(opts)
+        return ObjectDetector.create_from_options(opts)
     except Exception as e:
         print(f"[FaceService] Phone detector unavailable: {e}")
         return None
@@ -99,8 +105,7 @@ def _phone_in_frame(detector, frame_rgb: np.ndarray) -> bool:
     if detector is None:
         return False
     try:
-        from mediapipe.tasks.python.vision import core as mp_core
-        mp_image = mp_core.image.Image(image_format=mp_core.image.ImageFormat.SRGB, data=frame_rgb)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
         result = detector.detect(mp_image)
         for detection in result.detections:
             for category in detection.categories:
@@ -120,10 +125,11 @@ class FaceService:
     Subscribe via `on_state_change` to receive `DetectionState` updates.
     """
 
-    # Pitch threshold (degrees) above which the user is considered looking down
-    LOOKING_DOWN_PITCH_THRESHOLD = 20.0
-    # Yaw threshold for looking far sideways (phone in peripheral)
-    LOOKING_AWAY_YAW_THRESHOLD = 35.0
+    # How far the yaw_ratio can deviate from 0.5 (center) before distracted
+    YAW_TOLERANCE = 0.15
+    # How far the pitch_ratio can deviate from its neutral (~0.37) before distracted
+    PITCH_CENTER = 0.37
+    PITCH_TOLERANCE = 0.08
 
     def __init__(self, camera_index: int = 0, debug: bool = False):
         self._camera_index = camera_index
@@ -168,17 +174,17 @@ class FaceService:
             self._on_state_change(new_state)
 
     def _classify(self, landmarks, frame_shape, frame_rgb: np.ndarray) -> DetectionState:
-        """Combine head-pose + phone detection into a single DetectionState."""
-        pitch, yaw = _get_head_pose(landmarks, frame_shape)
+        """Check if user is looking at the screen using landmark ratios."""
+        yaw_ratio, pitch_ratio = _get_face_direction(landmarks)
+        self._last_yaw_ratio = yaw_ratio
+        self._last_pitch_ratio = pitch_ratio
 
-        looking_down = pitch > self.LOOKING_DOWN_PITCH_THRESHOLD
-        looking_away = abs(yaw) > self.LOOKING_AWAY_YAW_THRESHOLD
+        yaw_off = abs(yaw_ratio - 0.5) > self.YAW_TOLERANCE
+        pitch_off = abs(pitch_ratio - self.PITCH_CENTER) > self.PITCH_TOLERANCE
         phone_present = _phone_in_frame(self._phone_detector, frame_rgb)
 
-        if looking_down or phone_present:
+        if yaw_off or pitch_off or phone_present:
             return DetectionState.DISTRACTED
-        if looking_away:
-            return DetectionState.AWAY
         return DetectionState.LOCKED_IN
 
     def _run(self):
@@ -188,12 +194,17 @@ class FaceService:
             self._set_state(DetectionState.UNKNOWN)
             return
 
-        with _mp_face_mesh.FaceMesh(
-            max_num_faces=1,
-            refine_landmarks=True,
-            min_detection_confidence=0.6,
+        model_path = _ensure_face_model()
+        options = FaceLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=str(model_path)),
+            running_mode=RunningMode.IMAGE,
+            num_faces=1,
+            min_face_detection_confidence=0.6,
+            min_face_presence_confidence=0.6,
             min_tracking_confidence=0.6,
-        ) as face_mesh:
+        )
+
+        with FaceLandmarker.create_from_options(options) as landmarker:
             while not self._stop_event.is_set():
                 ret, frame = cap.read()
                 if not ret:
@@ -201,28 +212,25 @@ class FaceService:
                     continue
 
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame_rgb.flags.writeable = False
-                results = face_mesh.process(frame_rgb)
-                frame_rgb.flags.writeable = True
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
+                results = landmarker.detect(mp_image)
 
-                if not results.multi_face_landmarks:
+                if not results.face_landmarks:
                     self._set_state(DetectionState.AWAY)
                 else:
-                    landmarks = results.multi_face_landmarks[0].landmark
+                    landmarks = results.face_landmarks[0]
                     raw_state = self._classify(landmarks, frame.shape, frame_rgb)
                     self._set_state(raw_state)
 
                 if self._debug:
                     debug_frame = frame.copy()
-                    if results.multi_face_landmarks:
-                        for face_landmarks in results.multi_face_landmarks:
-                            _mp_drawing.draw_landmarks(
-                                image=debug_frame,
-                                landmark_list=face_landmarks,
-                                connections=_mp_face_mesh.FACEMESH_TESSELATION,
-                                landmark_drawing_spec=None,
-                                connection_drawing_spec=_mp_drawing_styles.get_default_face_mesh_tesselation_style(),
-                            )
+                    if results.face_landmarks:
+                        h, w = debug_frame.shape[:2]
+                        for lm in results.face_landmarks[0]:
+                            cx, cy = int(lm.x * w), int(lm.y * h)
+                            cv2.circle(debug_frame, (cx, cy), 1, (0, 255, 0), -1)
+                    yr = getattr(self, '_last_yaw_ratio', 0.5)
+                    pr = getattr(self, '_last_pitch_ratio', 0.5)
                     cv2.putText(
                         debug_frame,
                         f"State: {self.state.value}",
@@ -230,6 +238,15 @@ class FaceService:
                         cv2.FONT_HERSHEY_SIMPLEX,
                         1,
                         (0, 255, 0),
+                        2,
+                    )
+                    cv2.putText(
+                        debug_frame,
+                        f"Yaw: {yr:.2f}  Pitch: {pr:.2f}",
+                        (10, 70),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.8,
+                        (255, 255, 0),
                         2,
                     )
                     cv2.imshow("LockIn Debug", debug_frame)

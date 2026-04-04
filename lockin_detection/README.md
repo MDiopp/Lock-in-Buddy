@@ -119,3 +119,33 @@ t=3.5s User looks back up
 | Looking-down pitch | 20° | `FaceService.LOOKING_DOWN_PITCH_THRESHOLD` |
 | Looking-away yaw | 35° | `FaceService.LOOKING_AWAY_YAW_THRESHOLD` |
 | Phone detection confidence | 0.4 | `_try_load_phone_detector()` in `faceService.py` |
+
+---
+
+## Running the Backend
+
+Open **one terminal** from the **project root** (`Lock-in-Buddy/`).
+
+**Terminal 1 — run the start.bat file:**
+```powershell
+.\start.bat
+```
+
+### Or
+
+Open **two terminals** from the **project root** (`Lock-in-Buddy/`).
+
+**Terminal 1 — start the API server:**
+```powershell
+python -m uvicorn main:app --reload
+```
+
+**Terminal 2 — start a detection session:**
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/session/start"
+```
+
+To stop the session:
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/session/stop"
+```
