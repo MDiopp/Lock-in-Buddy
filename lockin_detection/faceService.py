@@ -127,9 +127,9 @@ class FaceService:
 
     # How far the yaw_ratio can deviate from 0.5 (center) before distracted
     YAW_TOLERANCE = 0.15
-    # How far the pitch_ratio can deviate from its neutral (~0.37) before distracted
-    PITCH_CENTER = 0.37
-    PITCH_TOLERANCE = 0.08
+    # Calibrated pitch range where the user is considered locked in (straight-facing)
+    PITCH_MIN = 0.49
+    PITCH_MAX = 0.62
 
     def __init__(self, camera_index: int = 0, debug: bool = False):
         self._camera_index = camera_index
@@ -180,7 +180,7 @@ class FaceService:
         self._last_pitch_ratio = pitch_ratio
 
         yaw_off = abs(yaw_ratio - 0.5) > self.YAW_TOLERANCE
-        pitch_off = abs(pitch_ratio - self.PITCH_CENTER) > self.PITCH_TOLERANCE
+        pitch_off = not (self.PITCH_MIN <= pitch_ratio <= self.PITCH_MAX)
         phone_present = _phone_in_frame(self._phone_detector, frame_rgb)
 
         if yaw_off or pitch_off or phone_present:
