@@ -33,7 +33,6 @@ class StateMachine:
         self._current_state = DetectionState.UNKNOWN
         self._distraction_start: Optional[float] = None
         self._last_alert_time: float = 0.0
-        self._alerted = False
 
     @property
     def state(self) -> DetectionState:
@@ -51,19 +50,16 @@ class StateMachine:
                 elapsed = now - self._distraction_start
                 cooldown_over = (now - self._last_alert_time) >= self._cooldown
 
-                if elapsed >= self._distraction_threshold and cooldown_over and not self._alerted:
+                if elapsed >= self._distraction_threshold and cooldown_over:
                     self._current_state = DetectionState.ALERT
                     self._last_alert_time = now
-                    self._alerted = True
                     alert_cb = self._on_alert
                 else:
-                    if not self._alerted:
-                        self._current_state = DetectionState.DISTRACTED
+                    self._current_state = DetectionState.DISTRACTED
                     alert_cb = None
             else:
                 # User is locked in or unknown — reset distraction tracking
                 self._distraction_start = None
-                self._alerted = False
                 self._current_state = raw_state
                 alert_cb = None
 
@@ -76,5 +72,4 @@ class StateMachine:
         with self._lock:
             self._current_state = DetectionState.UNKNOWN
             self._distraction_start = None
-            self._alerted = False
             self._last_alert_time = 0.0

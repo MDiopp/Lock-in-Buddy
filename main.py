@@ -18,16 +18,16 @@ app.add_middleware(
 
 # ── Singletons ─────────────────────────────────────────────────────────────────
 face_service = FaceService(camera_index=0, debug=True)
-state_machine = StateMachine(distraction_threshold=3.0, cooldown=10.0)
-
-# Wire detection output through the state machine
-face_service.on_state_change(state_machine.feed)
+state_machine = StateMachine(distraction_threshold=3.0, cooldown=3.0)
 
 # Event loop reference (captured when the app starts)
 _loop: asyncio.AbstractEventLoop | None = None
 
 # Connected WebSocket clients
 _ws_clients: list[WebSocket] = []
+
+
+_last_broadcast_state = DetectionState.UNKNOWN
 
 
 async def _broadcast(state: DetectionState):
@@ -42,24 +42,24 @@ async def _broadcast(state: DetectionState):
     for ws in disconnected:
         _ws_clients.remove(ws)
 
-
-def _on_alert():
-    """Called by StateMachine when ALERT fires (runs in detection thread)."""
+def _broadcast_if_changed():
+    """Forward only stable debounced state transitions to WebSocket clients."""
+    global _last_broadcast_state
+    current_state = state_machine.state
+    if current_state == _last_broadcast_state:
+        return
+    _last_broadcast_state = current_state
     if _loop is not None:
-        asyncio.run_coroutine_threadsafe(_broadcast(DetectionState.ALERT), _loop)
+        asyncio.run_coroutine_threadsafe(_broadcast(current_state), _loop)
 
 
-state_machine._on_alert = _on_alert
+def _on_raw_sample(raw_state: DetectionState):
+    """Feed every raw sample into the state machine and broadcast stable changes."""
+    state_machine.feed(raw_state)
+    _broadcast_if_changed()
 
 
-def _on_state_change_ws(new_state: DetectionState):
-    """Forward every state change to WebSocket clients."""
-    if _loop is not None:
-        asyncio.run_coroutine_threadsafe(_broadcast(new_state), _loop)
-
-
-# Re-register callback to also broadcast all state changes (not just alerts)
-face_service.on_state_change(lambda s: (state_machine.feed(s), _on_state_change_ws(state_machine.state)))
+face_service.on_raw_sample(_on_raw_sample)
 
 # ── Startup ────────────────────────────────────────────────────────────────────
 
@@ -84,15 +84,19 @@ async def get_status():
 
 @app.post("/session/start", response_model=SessionResponse)
 async def start_session():
-    face_service.start()
+    global _last_broadcast_state
     state_machine.reset()
+    _last_broadcast_state = state_machine.state
+    face_service.start()
     return SessionResponse(running=True, message="Session started")
 
 
 @app.post("/session/stop", response_model=SessionResponse)
 async def stop_session():
+    global _last_broadcast_state
     face_service.stop()
     state_machine.reset()
+    _last_broadcast_state = state_machine.state
     return SessionResponse(running=False, message="Session stopped")
 
 

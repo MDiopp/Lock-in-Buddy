@@ -5,7 +5,42 @@ import RunningScreen from "./RunningScreen";
 import { ButtonMode } from "./TypeButton";
 import { themeByMode } from "../modes/themeByMode";
 import { useTimer } from "../hooks/useTimer";
+import { useDetectionSession } from "../hooks/useDetectionSession";
 import type { TriggerEvent } from "../modes/types";
+
+type ModeDurations = Record<ButtonMode, number>;
+
+const STORAGE_KEY = "lockin-buddy-mode-durations";
+
+const DEFAULT_DURATIONS: ModeDurations = {
+  lockIn: themeByMode.lockIn.timerLength,
+  shortBreak: themeByMode.shortBreak.timerLength,
+  longBreak: themeByMode.longBreak.timerLength,
+};
+
+function clampDuration(value: number) {
+  return Math.max(1, Math.floor(value));
+}
+
+function loadSavedDurations(): ModeDurations {
+  if (typeof window === "undefined") {
+    return DEFAULT_DURATIONS;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_DURATIONS;
+
+    const parsed = JSON.parse(raw) as Partial<Record<ButtonMode, unknown>>;
+    return {
+      lockIn: clampDuration(Number(parsed.lockIn ?? DEFAULT_DURATIONS.lockIn)),
+      shortBreak: clampDuration(Number(parsed.shortBreak ?? DEFAULT_DURATIONS.shortBreak)),
+      longBreak: clampDuration(Number(parsed.longBreak ?? DEFAULT_DURATIONS.longBreak)),
+    };
+  } catch {
+    return DEFAULT_DURATIONS;
+  }
+}
 
 export default function MainPage({
   activeMode,
@@ -19,10 +54,58 @@ export default function MainPage({
   const [isRunningScreen, setIsRunningScreen] = useState(false);
   const [activeTrigger, setActiveTrigger] = useState<TriggerEvent | null>(null);
   const [resumeAfterTrigger, setResumeAfterTrigger] = useState(false);
+  const [endSessionAfterTrigger, setEndSessionAfterTrigger] = useState(false);
+  const [modeDurations, setModeDurations] = useState<ModeDurations>(() => loadSavedDurations());
 
   const { minutes, seconds, isRunning, isFinished, start, pause, toggle, reset } = useTimer(
-    themeByMode[activeMode].timerLength,
+    modeDurations[activeMode],
   );
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(modeDurations));
+  }, [modeDurations]);
+
+  const exitRunningSession = () => {
+    setActiveTrigger(null);
+    setResumeAfterTrigger(false);
+    setEndSessionAfterTrigger(false);
+    setIsRunningScreen(false);
+    reset();
+  };
+
+  const clearAlertVisual = () => {
+    if (endSessionAfterTrigger || !activeTrigger || activeTrigger === "success") return;
+
+    setActiveTrigger(null);
+    if (resumeAfterTrigger) start();
+    setResumeAfterTrigger(false);
+    setEndSessionAfterTrigger(false);
+  };
+
+  const triggerEvent = (event: TriggerEvent, options?: { endSessionAfter?: boolean }) => {
+    const shouldEndSession = options?.endSessionAfter ?? false;
+    const shouldResumeAfter = !shouldEndSession && (isRunning || resumeAfterTrigger);
+
+    setResumeAfterTrigger(shouldResumeAfter);
+    setEndSessionAfterTrigger(shouldEndSession);
+    pause();
+    setActiveTrigger(event);
+    onTriggerInitiated(event);
+  };
+
+  useDetectionSession({
+    enabled: isRunningScreen && activeMode === "lockIn",
+    onStrike: (strikeCount) => {
+      if (strikeCount === 1) {
+        triggerEvent("mad1");
+      } else if (strikeCount === 2) {
+        triggerEvent("mad2");
+      } else if (strikeCount === 3) {
+        triggerEvent("mad3", { endSessionAfter: true });
+      }
+    },
+    onLockedIn: clearAlertVisual,
+  });
 
   const handleStart = () => {
     setIsRunningScreen(true);
@@ -30,16 +113,18 @@ export default function MainPage({
   };
 
   const handleSkip = () => {
-    setActiveTrigger(null);
-    setIsRunningScreen(false);
-    reset();
+    exitRunningSession();
   };
 
   const handleTrigger = (event: TriggerEvent) => {
-    setResumeAfterTrigger(isRunning);
-    pause();
-    setActiveTrigger(event);
-    onTriggerInitiated(event);
+    triggerEvent(event);
+  };
+
+  const handleDurationChange = (value: number) => {
+    setModeDurations((currentDurations) => ({
+      ...currentDurations,
+      [activeMode]: clampDuration(value),
+    }));
   };
 
   useEffect(() => {
@@ -48,20 +133,23 @@ export default function MainPage({
     const ms = themeByMode[activeMode].triggerDurationMs[activeTrigger];
     const id = window.setTimeout(() => {
       if (activeTrigger === "success") {
-        setActiveTrigger(null);
-        setResumeAfterTrigger(false);
-        setIsRunningScreen(false);
-        reset();
+        exitRunningSession();
+        return;
+      }
+
+      if (endSessionAfterTrigger) {
+        exitRunningSession();
         return;
       }
 
       setActiveTrigger(null);
       if (resumeAfterTrigger) start();
       setResumeAfterTrigger(false);
+      setEndSessionAfterTrigger(false);
     }, ms);
 
     return () => window.clearTimeout(id);
-  }, [activeMode, activeTrigger, reset, resumeAfterTrigger, start]);
+  }, [activeMode, activeTrigger, endSessionAfterTrigger, resumeAfterTrigger, reset, start]);
 
   if (isRunningScreen) {
     return (
@@ -84,7 +172,13 @@ export default function MainPage({
       <div className="face box-border flex h-[min(70vh,38rem)] w-full max-w-[min(92vw,80rem)] flex-col rounded-xl bg-[var(--lighterGreen)] p-[clamp(0.5rem,3cqw,1.75rem)] [container-type:inline-size] transition-colors duration-300 ease-in-out">
         <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-center justify-center gap-y-[2em] [font-size:clamp(0.75rem,3.2cqw,1.125rem)]">
           <ModeSelector activeMode={activeMode} onModeChange={onModeChange} />
-          <TimerPanel minutes={minutes} seconds={seconds} onStart={handleStart} />
+          <TimerPanel
+            minutes={minutes}
+            seconds={seconds}
+            onStart={handleStart}
+            durationMinutes={modeDurations[activeMode]}
+            onDurationChange={handleDurationChange}
+          />
         </div>
       </div>
     </main>

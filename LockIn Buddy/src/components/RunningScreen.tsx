@@ -126,18 +126,6 @@ export default function RunningScreen({
     if (isFinished == true) onTrigger("success");
   }, [isFinished]);
 
-  // Quick keyboard triggers for testing until event wiring is added.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "s") onTrigger("success");
-      if (e.key === "1") onTrigger("mad1");
-      if (e.key === "2") onTrigger("mad2");
-      if (e.key === "3") onTrigger("mad3");
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onTrigger]);
-
   return (
     <main
       className="relative grid h-screen grid-rows-[1fr_auto_1fr] bg-[var(--customGreen)] px-4 py-6 transition-colors duration-300 ease-in-out"

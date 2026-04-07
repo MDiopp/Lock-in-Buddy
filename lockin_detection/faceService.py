@@ -139,6 +139,7 @@ class FaceService:
         self._state = DetectionState.UNKNOWN
         self._state_lock = threading.Lock()
         self._on_state_change: Optional[Callable[[DetectionState], None]] = None
+        self._on_raw_sample: Optional[Callable[[DetectionState], None]] = None
         self._phone_detector = _try_load_phone_detector()
 
     @property
@@ -149,6 +150,10 @@ class FaceService:
     def on_state_change(self, callback: Callable[[DetectionState], None]):
         """Register a callback invoked whenever the detection state changes."""
         self._on_state_change = callback
+
+    def on_raw_sample(self, callback: Callable[[DetectionState], None]):
+        """Register a callback invoked for every processed raw detection sample."""
+        self._on_raw_sample = callback
 
     def start(self):
         if self._thread and self._thread.is_alive():
@@ -216,11 +221,14 @@ class FaceService:
                 results = landmarker.detect(mp_image)
 
                 if not results.face_landmarks:
-                    self._set_state(DetectionState.AWAY)
+                    raw_state = DetectionState.AWAY
                 else:
                     landmarks = results.face_landmarks[0]
                     raw_state = self._classify(landmarks, frame.shape, frame_rgb)
-                    self._set_state(raw_state)
+
+                if self._on_raw_sample:
+                    self._on_raw_sample(raw_state)
+                self._set_state(raw_state)
 
                 if self._debug:
                     debug_frame = frame.copy()
