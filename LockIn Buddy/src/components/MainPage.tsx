@@ -111,6 +111,7 @@ export default function MainPage({
     if (endBreakSoundPlayedRef.current) return;
     endBreakSoundPlayedRef.current = true;
     onBreakSessionEnd();
+    exitRunningSession();
   }, [isRunningScreen, activeMode, isFinished, onBreakSessionEnd]);
 
   useDetectionSession({
@@ -132,6 +133,9 @@ export default function MainPage({
       onBreakSessionStart("shortBreak");
     } else if (activeMode === "longBreak") {
       onBreakSessionStart("longBreak");
+    } else if (activeMode === "lockIn") {
+      // Same clip as when a break ends (endBreakSound).
+      onBreakSessionEnd();
     }
     setIsRunningScreen(true);
     start();
