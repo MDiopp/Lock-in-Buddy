@@ -15,10 +15,12 @@ import mad3SoundMp3 from "./audio/mad3Sound.mp3";
 import shortBreakSoundMp3 from "./audio/shortBreakSound.mp3";
 import longBreakSoundWav from "./audio/longBreakSound.wav";
 import endBreakSoundMp3 from "./audio/endBreakSound.mp3";
+import helloSoundMp3 from "./audio/helloSound.mp3";
 
 type SoundKey =
   | "buttonClick"
   | "startPress"
+  | "hello"
   | "triggerSuccess"
   | "triggerMad1"
   | "triggerMad2"
@@ -30,6 +32,7 @@ type SoundKey =
 const SOUND_CONFIG: Record<SoundKey, { src: string; volume: number }> = {
   buttonClick: { src: buttonClickMp3, volume: 0.35 },
   startPress: { src: startPressMp3, volume: 0.52 },
+  hello: { src: helloSoundMp3, volume: 0.5 },
   triggerSuccess: { src: successSoundMp3, volume: 0.5 },
   triggerMad1: { src: mad1SoundMp3, volume: 0.5 },
   triggerMad2: { src: mad2SoundMp3, volume: 0.5 },
@@ -119,6 +122,11 @@ function App() {
 
       const clickedButton = target.closest("button");
       if (!clickedButton || clickedButton.hasAttribute("disabled")) return;
+
+      if (clickedButton.classList.contains("welcomeContinue")) {
+        playSound("hello");
+        return;
+      }
 
       const isStartButton = clickedButton.classList.contains("startButton");
       playSound(isStartButton ? "startPress" : "buttonClick");
