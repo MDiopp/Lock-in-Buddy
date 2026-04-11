@@ -13,10 +13,8 @@
     "windows": [
       {
         "title": "LockInBuddy",
-        "width": 600,
-        "height": 450,
-        "minWidth": 450,
-        "minHeight": 300,
+        "minWidth": 770,
+        "minHeight": 620,
         "resizable": true,
         "titleBarStyle": "Transparent",
         "hiddenTitle": true,

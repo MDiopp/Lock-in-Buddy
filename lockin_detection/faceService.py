@@ -134,6 +134,8 @@ class FaceService:
     def __init__(self, camera_index: int = 0, debug: bool = False):
         self._camera_index = camera_index
         self._debug = debug
+        self._preview_lock = threading.Lock()
+        self._preview_jpeg: Optional[bytes] = None
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._state = DetectionState.UNKNOWN
@@ -155,6 +157,15 @@ class FaceService:
         """Register a callback invoked for every processed raw detection sample."""
         self._on_raw_sample = callback
 
+    @property
+    def debug(self) -> bool:
+        return self._debug
+
+    def get_preview_jpeg(self) -> Optional[bytes]:
+        """Latest debug frame as JPEG, for MJPEG streaming (safe from any thread)."""
+        with self._preview_lock:
+            return self._preview_jpeg
+
     def start(self):
         if self._thread and self._thread.is_alive():
             return
@@ -167,6 +178,8 @@ class FaceService:
         if self._thread:
             self._thread.join(timeout=3.0)
         self._set_state(DetectionState.UNKNOWN)
+        with self._preview_lock:
+            self._preview_jpeg = None
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
@@ -257,19 +270,24 @@ class FaceService:
                         (255, 255, 0),
                         2,
                     )
-                    cv2.imshow("LockIn Debug", debug_frame)
-                    if cv2.waitKey(1) & 0xFF == ord("q"):
-                        break
+                    ok, buf = cv2.imencode(
+                        ".jpg", debug_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 82]
+                    )
+                    if ok:
+                        with self._preview_lock:
+                            self._preview_jpeg = buf.tobytes()
 
         cap.release()
-        if self._debug:
-            cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
     import time as _time
 
-    print("Starting FaceService in debug mode. Press 'q' in the OpenCV window to quit.")
+    print(
+        "Starting FaceService in debug mode. "
+        "For a live preview, run the API (uvicorn main:app) and open "
+        "http://127.0.0.1:8000/debug/preview"
+    )
     svc = FaceService(camera_index=0, debug=True)
     svc.on_state_change(lambda s: print(f"State → {s.value}"))
     svc.start()

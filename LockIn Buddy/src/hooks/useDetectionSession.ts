@@ -45,32 +45,42 @@ export function useDetectionSession({
     strikeCountRef.current = 0;
     alertConsumedRef.current = false;
 
-    void postSession("/session/start");
-
     const ws = new WebSocket(WS_URL);
 
-    ws.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data) as { state?: BackendState };
-        const state = payload.state;
-        if (!state) return;
+    // Start the camera session only after the socket is accepted, so the server
+    // already has this client in _ws_clients before any ALERT broadcasts.
+    ws.onopen = () => {
+      void postSession("/session/start");
+    };
 
-        if (state === "ALERT") {
-          if (alertConsumedRef.current || strikeCountRef.current >= 3) return;
-          alertConsumedRef.current = true;
-          strikeCountRef.current += 1;
-          onStrikeRef.current(strikeCountRef.current);
-          return;
+    ws.onmessage = (event: MessageEvent) => {
+      void (async () => {
+        try {
+          const raw =
+            typeof event.data === "string"
+              ? event.data
+              : await (event.data as Blob).text();
+          const payload = JSON.parse(raw) as { state?: BackendState };
+          const state = payload.state;
+          if (!state) return;
+
+          if (state === "ALERT") {
+            if (alertConsumedRef.current || strikeCountRef.current >= 3) return;
+            alertConsumedRef.current = true;
+            strikeCountRef.current += 1;
+            onStrikeRef.current(strikeCountRef.current);
+            return;
+          }
+
+          alertConsumedRef.current = false;
+
+          if (state === "LOCKED_IN") {
+            onLockedInRef.current();
+          }
+        } catch {
+          // Ignore malformed websocket payloads.
         }
-
-        alertConsumedRef.current = false;
-
-        if (state === "LOCKED_IN") {
-          onLockedInRef.current();
-        }
-      } catch {
-        // Ignore malformed websocket payloads.
-      }
+      })();
     };
 
     return () => {

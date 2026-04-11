@@ -1,7 +1,9 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, StreamingResponse
 import asyncio
 import json
+import os
 
 from lockin_detection.faceService import FaceService
 from lockin_detection.stateMachine import StateMachine
@@ -17,7 +19,26 @@ app.add_middleware(
 )
 
 # ── Singletons ─────────────────────────────────────────────────────────────────
-face_service = FaceService(camera_index=0, debug=True)
+
+
+def _camera_index_from_env() -> int:
+    raw = os.environ.get("LOCKIN_CAMERA_INDEX", "0")
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"[LockIn] Invalid LOCKIN_CAMERA_INDEX={raw!r}, using 0")
+        return 0
+
+
+# If index 0 is OBS Virtual Camera, try 1 or 2 for the built-in webcam, e.g.:
+#   LOCKIN_CAMERA_INDEX=1 python3 -m uvicorn main:app --reload
+# _camera_index = _camera_index_from_env()
+_camera_index = 1
+face_service = FaceService(camera_index=_camera_index, debug=True)
+print(
+    f"[LockIn] Using camera index {_camera_index} "
+    "(set env LOCKIN_CAMERA_INDEX to change; 1 is often the real Mac camera when 0 is OBS)."
+)
 state_machine = StateMachine(distraction_threshold=3.0, cooldown=3.0)
 
 # Event loop reference (captured when the app starts)
@@ -74,6 +95,55 @@ async def _startup():
 @app.get("/")
 async def root():
     return {"message": "LockIn Buddy API is running"}
+
+
+@app.get("/debug/preview", response_class=HTMLResponse)
+async def debug_preview_page():
+    """Simple page that shows the MJPEG stream (works on macOS; no OpenCV GUI thread)."""
+    if not face_service.debug:
+        raise HTTPException(status_code=404, detail="Debug preview is disabled (set debug=True on FaceService).")
+    return HTMLResponse(
+        """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>LockIn — camera preview</title>
+  <style>
+    body { margin: 0; background: #111; min-height: 100vh; display: flex;
+           flex-direction: column; align-items: center; justify-content: center; }
+    img { max-width: 100%; max-height: calc(100vh - 3rem); object-fit: contain; }
+    p { color: #888; font: 13px/1.4 system-ui, sans-serif; margin: 0.75rem 1rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <img src="/debug/preview/stream" alt="Live camera preview"/>
+  <p>Start a <strong>lock-in</strong> session in the app so the camera runs. Green dots = face landmarks; Yaw/Pitch show head pose.</p>
+</body>
+</html>"""
+    )
+
+
+@app.get("/debug/preview/stream")
+async def debug_preview_stream():
+    if not face_service.debug:
+        raise HTTPException(status_code=404, detail="Debug preview is disabled.")
+
+    async def mjpeg():
+        while True:
+            jpeg = face_service.get_preview_jpeg()
+            if jpeg:
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
+                )
+            await asyncio.sleep(1 / 30)
+
+    return StreamingResponse(
+        mjpeg(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-cache, no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/status", response_model=StatusPayload)
