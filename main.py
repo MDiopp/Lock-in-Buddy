@@ -30,14 +30,15 @@ def _camera_index_from_env() -> int:
         return 0
 
 
-# If index 0 is OBS Virtual Camera, try 1 or 2 for the built-in webcam, e.g.:
+# Default is 0 (works on Windows). Mac users with OBS Virtual Camera on index 0
+# should set LOCKIN_CAMERA_INDEX=1 to use the built-in webcam, e.g.:
 #   LOCKIN_CAMERA_INDEX=1 python3 -m uvicorn main:app --reload
-# _camera_index = _camera_index_from_env()
-_camera_index = 1
-face_service = FaceService(camera_index=_camera_index, debug=True)
+_camera_index = _camera_index_from_env()
+_cv2_preview = os.environ.get("LOCKIN_CV2_PREVIEW", "0") == "1"
+face_service = FaceService(camera_index=_camera_index, debug=True, cv2_preview=_cv2_preview)
 print(
     f"[LockIn] Using camera index {_camera_index} "
-    "(set env LOCKIN_CAMERA_INDEX to change; 1 is often the real Mac camera when 0 is OBS)."
+    "(set env LOCKIN_CAMERA_INDEX to override; Mac users with OBS may need 1)."
 )
 state_machine = StateMachine(distraction_threshold=3.0, cooldown=3.0)
 

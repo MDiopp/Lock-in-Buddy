@@ -131,9 +131,10 @@ class FaceService:
     PITCH_MIN = 0.49
     PITCH_MAX = 0.62
 
-    def __init__(self, camera_index: int = 0, debug: bool = False):
+    def __init__(self, camera_index: int = 0, debug: bool = False, cv2_preview: bool = False):
         self._camera_index = camera_index
         self._debug = debug
+        self._cv2_preview = cv2_preview
         self._preview_lock = threading.Lock()
         self._preview_jpeg: Optional[bytes] = None
         self._thread: Optional[threading.Thread] = None
@@ -277,6 +278,12 @@ class FaceService:
                         with self._preview_lock:
                             self._preview_jpeg = buf.tobytes()
 
+                    if self._cv2_preview:
+                        cv2.imshow("LockIn — Debug Preview", debug_frame)
+                        cv2.waitKey(1)
+
+        if self._cv2_preview:
+            cv2.destroyAllWindows()
         cap.release()
 
 
