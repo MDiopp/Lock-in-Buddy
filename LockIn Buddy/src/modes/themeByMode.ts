@@ -19,9 +19,9 @@ export const themeByMode: Record<
     timerLength: 25,
     triggerDurationMs: {
       success: 3000,
-      mad1: 1200,
-      mad2: 1200,
-      mad3: 1200,
+      mad1: 2000,
+      mad2: 2000,
+      mad3: 2000,
     },
   },
   shortBreak: {

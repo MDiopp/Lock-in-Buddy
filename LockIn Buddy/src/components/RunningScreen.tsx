@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import type { ButtonMode } from "./TypeButton";
 import skipSvg from "../assets/skip.svg";
@@ -120,11 +120,18 @@ export default function RunningScreen({
   const displayFaceProperties = activeTriggerUi?.faceProperties ?? modeUi.faceProperties;
   const hideControls = !!trigger;
   const showConfetti = trigger === "success";
+  const lockInSuccessFiredRef = useRef(false);
 
-  // if it's done, display the success screen
+  // Lock-in only: show success screen + success sound. Breaks use endBreakSound from MainPage instead.
   useEffect(() => {
-    if (isFinished == true) onTrigger("success");
-  }, [isFinished]);
+    if (!isFinished) {
+      lockInSuccessFiredRef.current = false;
+      return;
+    }
+    if (mode !== "lockIn" || lockInSuccessFiredRef.current) return;
+    lockInSuccessFiredRef.current = true;
+    onTrigger("success");
+  }, [isFinished, mode, onTrigger]);
 
   return (
     <main

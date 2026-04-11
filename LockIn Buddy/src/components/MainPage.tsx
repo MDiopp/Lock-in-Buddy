@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ModeSelector from "./ModeSelector";
 import TimerPanel from "./TimerPanel";
 import RunningScreen from "./RunningScreen";
@@ -46,16 +46,21 @@ export default function MainPage({
   activeMode,
   onModeChange,
   onTriggerInitiated,
+  onBreakSessionStart,
+  onBreakSessionEnd,
 }: {
   activeMode: ButtonMode;
   onModeChange: (mode: ButtonMode) => void;
   onTriggerInitiated: (trigger: TriggerEvent) => void;
+  onBreakSessionStart: (mode: "shortBreak" | "longBreak") => void;
+  onBreakSessionEnd: () => void;
 }) {
   const [isRunningScreen, setIsRunningScreen] = useState(false);
   const [activeTrigger, setActiveTrigger] = useState<TriggerEvent | null>(null);
   const [resumeAfterTrigger, setResumeAfterTrigger] = useState(false);
   const [endSessionAfterTrigger, setEndSessionAfterTrigger] = useState(false);
   const [modeDurations, setModeDurations] = useState<ModeDurations>(() => loadSavedDurations());
+  const endBreakSoundPlayedRef = useRef(false);
 
   const { minutes, seconds, isRunning, isFinished, start, pause, toggle, reset } = useTimer(
     modeDurations[activeMode],
@@ -93,6 +98,21 @@ export default function MainPage({
     onTriggerInitiated(event);
   };
 
+  useEffect(() => {
+    if (!isRunningScreen) {
+      endBreakSoundPlayedRef.current = false;
+      return;
+    }
+    if (activeMode !== "shortBreak" && activeMode !== "longBreak") return;
+    if (!isFinished) {
+      endBreakSoundPlayedRef.current = false;
+      return;
+    }
+    if (endBreakSoundPlayedRef.current) return;
+    endBreakSoundPlayedRef.current = true;
+    onBreakSessionEnd();
+  }, [isRunningScreen, activeMode, isFinished, onBreakSessionEnd]);
+
   useDetectionSession({
     enabled: isRunningScreen && activeMode === "lockIn",
     onStrike: (strikeCount) => {
@@ -108,6 +128,11 @@ export default function MainPage({
   });
 
   const handleStart = () => {
+    if (activeMode === "shortBreak") {
+      onBreakSessionStart("shortBreak");
+    } else if (activeMode === "longBreak") {
+      onBreakSessionStart("longBreak");
+    }
     setIsRunningScreen(true);
     start();
   };
