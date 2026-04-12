@@ -5,9 +5,11 @@ import asyncio
 import json
 import os
 
-from lockin_detection.faceService import FaceService
-from lockin_detection.stateMachine import StateMachine
-from lockin_detection.schemas import DetectionState, SessionResponse, StatusPayload
+from lockin_backend.camera import CameraManager
+from lockin_backend.faceService import FaceService
+from lockin_backend.faceCalibration import FaceCalibration
+from lockin_backend.stateMachine import StateMachine
+from lockin_backend.schemas import DetectionState, SessionResponse, StatusPayload, CalibrationData
 
 app = FastAPI(title="LockIn Buddy API")
 
@@ -35,11 +37,38 @@ def _camera_index_from_env() -> int:
 #   LOCKIN_CAMERA_INDEX=1 python3 -m uvicorn main:app --reload
 _camera_index = _camera_index_from_env()
 _cv2_preview = os.environ.get("LOCKIN_CV2_PREVIEW", "0") == "1"
-face_service = FaceService(camera_index=_camera_index, debug=True, cv2_preview=_cv2_preview)
+
+# Shared camera manager — opened once at startup, never released until shutdown
+camera_manager = CameraManager(camera_index=_camera_index)
+
+face_service = FaceService(camera_manager=camera_manager, debug=True, cv2_preview=_cv2_preview)
+calibration_service = FaceCalibration(camera_manager=camera_manager)
+
 print(
     f"[LockIn] Using camera index {_camera_index} "
     "(set env LOCKIN_CAMERA_INDEX to override; Mac users with OBS may need 1)."
 )
+
+# ── Calibration persistence ────────────────────────────────────────────────────
+from pathlib import Path as _Path
+
+_CALIBRATION_FILE = _Path(__file__).resolve().parent / "calibration.json"
+
+
+def _load_calibration():
+    """Load saved calibration from disk and apply to face_service."""
+    if not _CALIBRATION_FILE.exists():
+        return
+    try:
+        data = json.loads(_CALIBRATION_FILE.read_text())
+        cal = CalibrationData(**data)
+        face_service.set_calibration(cal.yaw_center, cal.pitch_center)
+        print(f"[LockIn] Loaded calibration: yaw={cal.yaw_center:.3f}, pitch={cal.pitch_center:.3f}")
+    except Exception as e:
+        print(f"[LockIn] Could not load calibration.json: {e}")
+
+
+_load_calibration()
 state_machine = StateMachine(distraction_threshold=3.0, cooldown=3.0)
 
 # Event loop reference (captured when the app starts)
@@ -89,6 +118,16 @@ face_service.on_raw_sample(_on_raw_sample)
 async def _startup():
     global _loop
     _loop = asyncio.get_running_loop()
+    # Open camera + load model once (the slow ~6-7 s cost) so session/calibration
+    # start instantly from here on.
+    camera_manager.open()
+
+
+@app.on_event("shutdown")
+async def _shutdown():
+    face_service.stop()
+    calibration_service.stop()
+    camera_manager.close()
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -127,12 +166,16 @@ async def debug_preview_page():
 
 @app.get("/debug/preview/stream")
 async def debug_preview_stream():
-    if not face_service.debug:
-        raise HTTPException(status_code=404, detail="Debug preview is disabled.")
-
     async def mjpeg():
         while True:
-            jpeg = face_service.get_preview_jpeg()
+            # Serve calibration preview when calibration is running,
+            # otherwise serve the lock-in detection preview.
+            if calibration_service.running:
+                jpeg = calibration_service.get_preview_jpeg()
+            else:
+                if not face_service.debug:
+                    break
+                jpeg = face_service.get_preview_jpeg()
             if jpeg:
                 yield (
                     b"--frame\r\n"
@@ -184,3 +227,47 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         if websocket in _ws_clients:
             _ws_clients.remove(websocket)
+
+
+# ── Calibration routes ─────────────────────────────────────────────────────────
+
+@app.post("/calibration/start", response_model=SessionResponse)
+async def calibration_start():
+    # Stop face_service if it's running so they don't both read frames
+    face_service.stop()
+    calibration_service.start()
+    return SessionResponse(running=True, message="Calibration camera started")
+
+
+@app.post("/calibration/stop", response_model=SessionResponse)
+async def calibration_stop():
+    calibration_service.stop()
+    return SessionResponse(running=False, message="Calibration camera stopped")
+
+
+@app.post("/calibration/capture", response_model=CalibrationData)
+async def calibration_capture():
+    # Wait up to 5 s for the first pose sample
+    pose = None
+    for _ in range(50):
+        pose = calibration_service.get_current_pose()
+        if pose is not None:
+            break
+        await asyncio.sleep(0.1)
+
+    if pose is None:
+        raise HTTPException(status_code=400, detail="No face detected — look at the camera and try again.")
+    yaw, pitch = pose
+    cal = CalibrationData(yaw_center=yaw, pitch_center=pitch)
+    _CALIBRATION_FILE.write_text(cal.model_dump_json())
+    face_service.set_calibration(cal.yaw_center, cal.pitch_center)
+    calibration_service.stop()
+    return cal
+
+
+@app.post("/calibration/reset", response_model=SessionResponse)
+async def calibration_reset():
+    face_service.reset_calibration()
+    if _CALIBRATION_FILE.exists():
+        _CALIBRATION_FILE.unlink()
+    return SessionResponse(running=False, message="Calibration reset to defaults")
