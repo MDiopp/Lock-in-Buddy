@@ -31,55 +31,59 @@ export default function Calibration({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <main className="flex h-screen flex-col items-center justify-center gap-8 bg-[var(--customGreen)] px-6 py-8">
-      <h1 className="text-[clamp(1.5rem,4vw,2.25rem)] text-[var(--classicWhite)]">
-        Calibration
-      </h1>
+    <main className="grid h-screen grid-rows-[1fr_auto_1fr] bg-[var(--customGreen)] px-4 py-6 transition-colors duration-300 ease-in-out">
+      <div className="row-start-2 face box-border flex h-[min(80vh,46rem)] w-full max-w-[min(92vw,80rem)] flex-col justify-self-center rounded-xl bg-[var(--lighterGreen)] p-[clamp(0.5rem,3cqw,1.75rem)] [container-type:inline-size] transition-colors duration-300 ease-in-out">
+        <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-center justify-center gap-y-[1.5em] [font-size:clamp(0.75rem,3.2cqw,1.125rem)]">
+          <h1 className="text-[clamp(1.5rem,4cqw,2.25rem)] font-medium text-[var(--customGreen)]">
+            Calibration
+          </h1>
 
-      <div className="flex w-full max-w-5xl flex-1 items-center gap-8 overflow-hidden">
-        {/* Instructions */}
-        <div className="flex w-1/2 flex-col gap-4 rounded-xl bg-white/90 p-6 shadow-lg">
-          <h2 className="text-xl font-semibold text-[var(--customGreen)]">
-            How to calibrate
-          </h2>
-          <ol className="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
-            <li>
-              Sit in the position you normally work in — the angle you want the
-              camera to recognize as <strong>"locked in."</strong>
-            </li>
-            <li>
-              When you're ready, click the{" "}
-              <strong>"Lock In!"</strong> button below.
-              The app will save your current head pose as the locked-in position.
-            </li>
-          </ol>
-          <p className="text-xs text-gray-400">
-            Any position outside this pose will be treated as distracted.
-          </p>
-        </div>
+          <div className="flex w-full max-w-5xl flex-1 min-h-0 items-center gap-8 overflow-hidden">
+            {/* Instructions */}
+            <div className="flex w-1/2 flex-col gap-4 rounded-xl bg-white/90 p-6 shadow-lg">
+              <h2 className="text-xl font-semibold text-[var(--customGreen)]">
+                How to calibrate
+              </h2>
+              <ol className="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
+                <li>
+                  Sit in the position you normally work in, the angle you want the
+                  camera to recognize as <strong>"locked in."</strong>
+                </li>
+                <li>
+                  When you're ready, click the{" "}
+                  <strong>"Lock In!"</strong> button below.
+                  The app will save your current head pose as the locked-in position.
+                </li>
+              </ol>
+              <p className="text-xs text-gray-400">
+                Any position outside this pose will be treated as distracted.
+              </p>
+            </div>
 
-        {/* Camera preview */}
-        <div className="flex w-1/2 items-center justify-center overflow-hidden rounded-xl bg-black shadow-lg">
-          <img
-            src={`${API}/debug/preview/stream`}
-            alt="Camera preview"
-            className="h-auto max-h-[60vh] w-full object-contain"
-          />
+            {/* Camera preview */}
+            <div className="flex w-1/2 items-center justify-center overflow-hidden rounded-xl bg-black shadow-lg">
+              <img
+                src={`${API}/debug/preview/stream`}
+                alt="Camera preview"
+                className="h-auto max-h-[50vh] w-full object-contain"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p className="text-sm font-medium text-red-400">{error}</p>
+          )}
+
+          <button
+            type="button"
+            disabled={capturing}
+            onClick={handleCapture}
+            className="cursor-pointer rounded-2xl bg-[var(--customGreen)] px-8 py-3 text-lg font-medium text-[var(--classicWhite)] shadow-md transition-[transform,background-color] duration-200 hover:scale-[1.03] hover:brightness-95 active:scale-[0.98] disabled:opacity-50"
+          >
+            {capturing ? "Saving…" : "Lock In!"}
+          </button>
         </div>
       </div>
-
-      {error && (
-        <p className="text-sm font-medium text-red-200">{error}</p>
-      )}
-
-      <button
-        type="button"
-        disabled={capturing}
-        onClick={handleCapture}
-        className="cursor-pointer rounded-2xl bg-[var(--classicWhite)] px-8 py-3 text-lg font-medium text-[var(--customGreen)] shadow-md transition-[transform,background-color] duration-200 hover:scale-[1.03] hover:brightness-95 active:scale-[0.98] disabled:opacity-50"
-      >
-        {capturing ? "Saving…" : "Lock In!"}
-      </button>
     </main>
   );
 }
