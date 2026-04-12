@@ -6,28 +6,40 @@ import MainPage from "./components/MainPage";
 import type { ButtonMode } from "./components/TypeButton";
 import { themeByMode } from "./modes/themeByMode";
 import type { TriggerEvent } from "./modes/types";
-import buttonClickMp3 from "./assets/ButtonClick.mp3";
-import startPressMp3 from "./assets/startPress.mp3";
-import successSoundMp3 from "./assets/successSound.mp3";
-import mad1SoundMp3 from "./assets/mad1Sound.mp3";
-import mad2SoundMp3 from "./assets/mad2Sound.mp3";
-import mad3SoundMp3 from "./assets/mad3Sound.mp3";
+import buttonClickMp3 from "./audio/ButtonClick.mp3";
+import startPressMp3 from "./audio/startPress.mp3";
+import successSoundMp3 from "./audio/successSound.mp3";
+import mad1SoundMp3 from "./audio/mad1Sound.mp3";
+import mad2SoundMp3 from "./audio/mad2Sound.mp3";
+import mad3SoundMp3 from "./audio/mad3Sound.mp3";
+import shortBreakSoundMp3 from "./audio/shortBreakSound.mp3";
+import longBreakSoundWav from "./audio/longBreakSound.wav";
+import endBreakSoundMp3 from "./audio/endBreakSound.mp3";
+import helloSoundMp3 from "./audio/helloSound.mp3";
 
 type SoundKey =
   | "buttonClick"
   | "startPress"
+  | "hello"
   | "triggerSuccess"
   | "triggerMad1"
   | "triggerMad2"
-  | "triggerMad3";
+  | "triggerMad3"
+  | "breakShortStart"
+  | "breakLongStart"
+  | "breakEnd";
 
 const SOUND_CONFIG: Record<SoundKey, { src: string; volume: number }> = {
   buttonClick: { src: buttonClickMp3, volume: 0.35 },
   startPress: { src: startPressMp3, volume: 0.52 },
+  hello: { src: helloSoundMp3, volume: 0.5 },
   triggerSuccess: { src: successSoundMp3, volume: 0.5 },
   triggerMad1: { src: mad1SoundMp3, volume: 0.5 },
   triggerMad2: { src: mad2SoundMp3, volume: 0.5 },
   triggerMad3: { src: mad3SoundMp3, volume: 0.5 },
+  breakShortStart: { src: shortBreakSoundMp3, volume: 0.5 },
+  breakLongStart: { src: longBreakSoundWav, volume: 0.5 },
+  breakEnd: { src: endBreakSoundMp3, volume: 0.5 },
 };
 
 const TRIGGER_SOUND_BY_EVENT: Record<TriggerEvent, SoundKey> = {
@@ -111,6 +123,11 @@ function App() {
       const clickedButton = target.closest("button");
       if (!clickedButton || clickedButton.hasAttribute("disabled")) return;
 
+      if (clickedButton.classList.contains("welcomeContinue")) {
+        playSound("hello");
+        return;
+      }
+
       const isStartButton = clickedButton.classList.contains("startButton");
       playSound(isStartButton ? "startPress" : "buttonClick");
     };
@@ -121,6 +138,14 @@ function App() {
 
   const handleTriggerInitiated = (trigger: TriggerEvent) => {
     playSound(TRIGGER_SOUND_BY_EVENT[trigger]);
+  };
+
+  const handleBreakSessionStart = (mode: "shortBreak" | "longBreak") => {
+    playSound(mode === "shortBreak" ? "breakShortStart" : "breakLongStart");
+  };
+
+  const handleBreakSessionEnd = () => {
+    playSound("breakEnd");
   };
 
   const theme = themeByMode[activeMode];
@@ -139,6 +164,8 @@ function App() {
           activeMode={activeMode}
           onModeChange={setActiveMode}
           onTriggerInitiated={handleTriggerInitiated}
+          onBreakSessionStart={handleBreakSessionStart}
+          onBreakSessionEnd={handleBreakSessionEnd}
         />
       )}
     </div>
