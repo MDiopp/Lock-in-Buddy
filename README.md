@@ -1,8 +1,8 @@
 ![banner](lockin_frontend/src/assets/banner.png)
 
-# Lock-In Buddy
+<h1 align="center">Lock-In Buddy</h1>
 
-A productivity-focused robot buddy paired with a desktop app designed to help users stay locked in! 
+<p align="center">A productivity-focused robot buddy paired with a desktop app designed to help users stay locked in!</p>
 
 ---
 
