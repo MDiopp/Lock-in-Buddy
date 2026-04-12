@@ -166,6 +166,7 @@ function App() {
           onTriggerInitiated={handleTriggerInitiated}
           onBreakSessionStart={handleBreakSessionStart}
           onBreakSessionEnd={handleBreakSessionEnd}
+          onBack={() => setShowWelcome(true)}
         />
       )}
     </div>
