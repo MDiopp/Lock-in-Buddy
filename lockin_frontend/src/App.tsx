@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./App.css";
 
 import WelcomeScreen from "./components/WelcomeScreen";
+import SettingsScreen from "./components/SettingsScreen";
 import MainPage from "./components/MainPage";
 import type { ButtonMode } from "./components/TypeButton";
 import { themeByMode } from "./modes/themeByMode";
@@ -51,6 +52,7 @@ const TRIGGER_SOUND_BY_EVENT: Record<TriggerEvent, SoundKey> = {
 
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [activeMode, setActiveMode] = useState<ButtonMode>("lockIn");
   const audioCtxRef = useRef<AudioContext | null>(null);
   const soundBuffersRef = useRef<Partial<Record<SoundKey, AudioBuffer>>>({});
@@ -157,8 +159,13 @@ function App() {
 
   return (
     <div style={themeStyle}>
-      {showWelcome ? (
-        <WelcomeScreen onContinue={() => setShowWelcome(false)} />
+      {showSettings ? (
+        <SettingsScreen onBack={() => setShowSettings(false)} />
+      ) : showWelcome ? (
+        <WelcomeScreen
+          onContinue={() => setShowWelcome(false)}
+          onSettings={() => setShowSettings(true)}
+        />
       ) : (
         <MainPage
           activeMode={activeMode}
@@ -166,6 +173,7 @@ function App() {
           onTriggerInitiated={handleTriggerInitiated}
           onBreakSessionStart={handleBreakSessionStart}
           onBreakSessionEnd={handleBreakSessionEnd}
+          onBack={() => setShowWelcome(true)}
         />
       )}
     </div>

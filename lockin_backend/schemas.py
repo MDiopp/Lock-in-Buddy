@@ -18,3 +18,8 @@ class StatusPayload(BaseModel):
 class SessionResponse(BaseModel):
     running: bool
     message: str
+
+
+class CalibrationData(BaseModel):
+    yaw_center: float
+    pitch_center: float

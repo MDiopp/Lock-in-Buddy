@@ -3,43 +3,23 @@ import mediapipe as mp
 import numpy as np
 import threading
 import time
-import urllib.request
 from pathlib import Path
 from typing import Callable, Optional
 
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.vision import (
-    FaceLandmarker,
-    FaceLandmarkerOptions,
     ObjectDetector,
     ObjectDetectorOptions,
-    RunningMode,
 )
 
+from .camera import CameraManager
 from .schemas import DetectionState
 
 # ── Model paths ────────────────────────────────────────────────────────────────
 _MODELS_DIR = Path(__file__).resolve().parent / "models"
-_FACE_MODEL_PATH = _MODELS_DIR / "face_landmarker.task"
 _PHONE_MODEL_PATH = _MODELS_DIR / "efficientdet_lite0.task"
 
-_FACE_MODEL_URL = (
-    "https://storage.googleapis.com/mediapipe-models/"
-    "face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
-)
-
 COCO_CELL_PHONE_CLASS = "cell phone"
-
-
-def _ensure_face_model() -> Path:
-    """Download the face-landmarker model if it doesn't exist yet."""
-    if _FACE_MODEL_PATH.exists():
-        return _FACE_MODEL_PATH
-    _MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"[FaceService] Downloading face_landmarker.task …")
-    urllib.request.urlretrieve(_FACE_MODEL_URL, _FACE_MODEL_PATH)
-    print(f"[FaceService] Saved to {_FACE_MODEL_PATH}")
-    return _FACE_MODEL_PATH
 
 
 # Landmark indices for simple gaze direction
@@ -119,7 +99,7 @@ def _phone_in_frame(detector, frame_rgb: np.ndarray) -> bool:
 # ── FaceService ────────────────────────────────────────────────────────────────
 
 class FaceService:
-    """Runs the camera + detection loop in a background thread.
+    """Runs the detection loop in a background thread using a shared CameraManager.
 
     Call `start()` to begin and `stop()` to end.
     Subscribe via `on_state_change` to receive `DetectionState` updates.
@@ -131,8 +111,8 @@ class FaceService:
     PITCH_MIN = 0.49
     PITCH_MAX = 0.62
 
-    def __init__(self, camera_index: int = 0, debug: bool = False, cv2_preview: bool = False):
-        self._camera_index = camera_index
+    def __init__(self, camera_manager: CameraManager, debug: bool = False, cv2_preview: bool = False):
+        self._cam = camera_manager
         self._debug = debug
         self._cv2_preview = cv2_preview
         self._preview_lock = threading.Lock()
@@ -144,6 +124,11 @@ class FaceService:
         self._on_state_change: Optional[Callable[[DetectionState], None]] = None
         self._on_raw_sample: Optional[Callable[[DetectionState], None]] = None
         self._phone_detector = _try_load_phone_detector()
+
+        # Calibration: instance-level overrides of the class defaults
+        self._yaw_center = 0.5
+        self._pitch_min = self.PITCH_MIN
+        self._pitch_max = self.PITCH_MAX
 
     @property
     def state(self) -> DetectionState:
@@ -167,10 +152,23 @@ class FaceService:
         with self._preview_lock:
             return self._preview_jpeg
 
+    def set_calibration(self, yaw_center: float, pitch_center: float):
+        half_pitch = (self.PITCH_MAX - self.PITCH_MIN) / 2
+        self._yaw_center = yaw_center
+        self._pitch_min = pitch_center - half_pitch
+        self._pitch_max = pitch_center + half_pitch
+
+    def reset_calibration(self):
+        self._yaw_center = 0.5
+        self._pitch_min = self.PITCH_MIN
+        self._pitch_max = self.PITCH_MAX
+
     def start(self):
         if self._thread and self._thread.is_alive():
             return
         self._stop_event.clear()
+        self._last_yaw_ratio = None
+        self._last_pitch_ratio = None
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
 
@@ -178,6 +176,7 @@ class FaceService:
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=3.0)
+            self._thread = None
         self._set_state(DetectionState.UNKNOWN)
         with self._preview_lock:
             self._preview_jpeg = None
@@ -198,8 +197,8 @@ class FaceService:
         self._last_yaw_ratio = yaw_ratio
         self._last_pitch_ratio = pitch_ratio
 
-        yaw_off = abs(yaw_ratio - 0.5) > self.YAW_TOLERANCE
-        pitch_off = not (self.PITCH_MIN <= pitch_ratio <= self.PITCH_MAX)
+        yaw_off = abs(yaw_ratio - self._yaw_center) > self.YAW_TOLERANCE
+        pitch_off = not (self._pitch_min <= pitch_ratio <= self._pitch_max)
         phone_present = _phone_in_frame(self._phone_detector, frame_rgb)
 
         if yaw_off or pitch_off or phone_present:
@@ -207,84 +206,65 @@ class FaceService:
         return DetectionState.LOCKED_IN
 
     def _run(self):
-        cap = cv2.VideoCapture(self._camera_index)
-        if not cap.isOpened():
-            print(f"[FaceService] Could not open camera {self._camera_index}")
-            self._set_state(DetectionState.UNKNOWN)
-            return
+        while not self._stop_event.is_set():
+            ret, frame = self._cam.read_frame()
+            if not ret or frame is None:
+                time.sleep(0.05)
+                continue
 
-        model_path = _ensure_face_model()
-        options = FaceLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path=str(model_path)),
-            running_mode=RunningMode.IMAGE,
-            num_faces=1,
-            min_face_detection_confidence=0.6,
-            min_face_presence_confidence=0.6,
-            min_tracking_confidence=0.6,
-        )
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = self._cam.detect_landmarks(frame_rgb)
 
-        with FaceLandmarker.create_from_options(options) as landmarker:
-            while not self._stop_event.is_set():
-                ret, frame = cap.read()
-                if not ret:
-                    time.sleep(0.05)
-                    continue
+            if results is None or not results.face_landmarks:
+                raw_state = DetectionState.AWAY
+            else:
+                landmarks = results.face_landmarks[0]
+                raw_state = self._classify(landmarks, frame.shape, frame_rgb)
 
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
-                results = landmarker.detect(mp_image)
+            if self._on_raw_sample:
+                self._on_raw_sample(raw_state)
+            self._set_state(raw_state)
 
-                if not results.face_landmarks:
-                    raw_state = DetectionState.AWAY
-                else:
-                    landmarks = results.face_landmarks[0]
-                    raw_state = self._classify(landmarks, frame.shape, frame_rgb)
+            if self._debug:
+                debug_frame = frame.copy()
+                if results and results.face_landmarks:
+                    h, w = debug_frame.shape[:2]
+                    for lm in results.face_landmarks[0]:
+                        cx, cy = int(lm.x * w), int(lm.y * h)
+                        cv2.circle(debug_frame, (cx, cy), 1, (0, 255, 0), -1)
+                yr = getattr(self, '_last_yaw_ratio', 0.5)
+                pr = getattr(self, '_last_pitch_ratio', 0.5)
+                cv2.putText(
+                    debug_frame,
+                    f"State: {self.state.value}",
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0, 255, 0),
+                    2,
+                )
+                cv2.putText(
+                    debug_frame,
+                    f"Yaw: {yr:.2f}  Pitch: {pr:.2f}",
+                    (10, 70),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8,
+                    (255, 255, 0),
+                    2,
+                )
+                ok, buf = cv2.imencode(
+                    ".jpg", debug_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 82]
+                )
+                if ok:
+                    with self._preview_lock:
+                        self._preview_jpeg = buf.tobytes()
 
-                if self._on_raw_sample:
-                    self._on_raw_sample(raw_state)
-                self._set_state(raw_state)
-
-                if self._debug:
-                    debug_frame = frame.copy()
-                    if results.face_landmarks:
-                        h, w = debug_frame.shape[:2]
-                        for lm in results.face_landmarks[0]:
-                            cx, cy = int(lm.x * w), int(lm.y * h)
-                            cv2.circle(debug_frame, (cx, cy), 1, (0, 255, 0), -1)
-                    yr = getattr(self, '_last_yaw_ratio', 0.5)
-                    pr = getattr(self, '_last_pitch_ratio', 0.5)
-                    cv2.putText(
-                        debug_frame,
-                        f"State: {self.state.value}",
-                        (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (0, 255, 0),
-                        2,
-                    )
-                    cv2.putText(
-                        debug_frame,
-                        f"Yaw: {yr:.2f}  Pitch: {pr:.2f}",
-                        (10, 70),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.8,
-                        (255, 255, 0),
-                        2,
-                    )
-                    ok, buf = cv2.imencode(
-                        ".jpg", debug_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 82]
-                    )
-                    if ok:
-                        with self._preview_lock:
-                            self._preview_jpeg = buf.tobytes()
-
-                    if self._cv2_preview:
-                        cv2.imshow("LockIn — Debug Preview", debug_frame)
-                        cv2.waitKey(1)
+                if self._cv2_preview:
+                    cv2.imshow("LockIn — Debug Preview", debug_frame)
+                    cv2.waitKey(1)
 
         if self._cv2_preview:
             cv2.destroyAllWindows()
-        cap.release()
 
 
 if __name__ == "__main__":
@@ -295,7 +275,9 @@ if __name__ == "__main__":
         "For a live preview, run the API (uvicorn main:app) and open "
         "http://127.0.0.1:8000/debug/preview"
     )
-    svc = FaceService(camera_index=0, debug=True)
+    cam = CameraManager(camera_index=0)
+    cam.open()
+    svc = FaceService(camera_manager=cam, debug=True)
     svc.on_state_change(lambda s: print(f"State → {s.value}"))
     svc.start()
     try:
@@ -305,4 +287,5 @@ if __name__ == "__main__":
         pass
     finally:
         svc.stop()
+        cam.close()
         print("Stopped.")
