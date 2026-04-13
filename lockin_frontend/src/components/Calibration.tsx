@@ -42,7 +42,7 @@ export default function Calibration({ onDone }: { onDone: () => void }) {
             {/* Instructions */}
             <div className="flex w-1/2 flex-col gap-4 rounded-xl bg-white/90 p-6 shadow-lg">
               <h2 className="text-xl font-semibold text-[var(--customGreen)]">
-                How to calibrate
+                How to Calibrate:
               </h2>
               <ol className="list-inside list-decimal space-y-2 text-sm leading-relaxed text-gray-700">
                 <li>
