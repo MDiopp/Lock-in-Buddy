@@ -4,6 +4,7 @@ import "./App.css";
 import WelcomeScreen from "./components/WelcomeScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import MainPage from "./components/MainPage";
+import AchievementsScreen from "./components/AchievementsScreen";
 import type { ButtonMode } from "./components/TypeButton";
 import { themeByMode } from "./modes/themeByMode";
 import type { TriggerEvent } from "./modes/types";
@@ -53,6 +54,7 @@ const TRIGGER_SOUND_BY_EVENT: Record<TriggerEvent, SoundKey> = {
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
   const [activeMode, setActiveMode] = useState<ButtonMode>("lockIn");
   const audioCtxRef = useRef<AudioContext | null>(null);
   const soundBuffersRef = useRef<Partial<Record<SoundKey, AudioBuffer>>>({});
@@ -161,10 +163,13 @@ function App() {
     <div style={themeStyle}>
       {showSettings ? (
         <SettingsScreen onBack={() => setShowSettings(false)} />
+      ) : showAchievements ? (
+        <AchievementsScreen onBack={() => setShowAchievements(false)} />
       ) : showWelcome ? (
         <WelcomeScreen
           onContinue={() => setShowWelcome(false)}
           onSettings={() => setShowSettings(true)}
+          onAchievements={() => setShowAchievements(true)}
         />
       ) : (
         <MainPage

@@ -5,9 +5,11 @@ import { requestNotificationPermission } from "../hooks/notifications";
 export default function WelcomeScreen({
   onContinue,
   onSettings,
+  onAchievements,
 }: {
   onContinue: () => void;
   onSettings: () => void;
+  onAchievements: () => void;
 }) {
   return (
     <main className="grid h-screen w-full min-h-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-4 gap-y-6 bg-[var(--customGreen)] px-4 py-6 sm:gap-x-8 sm:px-6">
@@ -39,6 +41,13 @@ export default function WelcomeScreen({
           className="welcomeContinue cursor-pointer mt-[clamp(1.75rem,4vw,2.5rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
         >
           Continue
+        </button>
+        <button
+          type="button"
+          onClick={onAchievements}
+          className="welcomeContinue cursor-pointer mt-[clamp(0.5rem,1.5vw,0.75rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
+        >
+          Achievements
         </button>
         <button
           type="button"
