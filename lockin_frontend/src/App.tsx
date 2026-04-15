@@ -4,9 +4,11 @@ import "./App.css";
 import WelcomeScreen from "./components/WelcomeScreen";
 import SettingsScreen from "./components/SettingsScreen";
 import MainPage from "./components/MainPage";
+import AchievementsScreen from "./components/AchievementsScreen";
 import type { ButtonMode } from "./components/TypeButton";
 import { themeByMode } from "./modes/themeByMode";
 import type { TriggerEvent } from "./modes/types";
+import { useAchievements } from "./hooks/useAchievements";
 import buttonClickMp3 from "./audio/ButtonClick.mp3";
 import startPressMp3 from "./audio/startPress.mp3";
 import successSoundMp3 from "./audio/successSound.mp3";
@@ -53,9 +55,12 @@ const TRIGGER_SOUND_BY_EVENT: Record<TriggerEvent, SoundKey> = {
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
   const [activeMode, setActiveMode] = useState<ButtonMode>("lockIn");
+  const { unlockedIds, unlockedDates, recordSession } = useAchievements();
   const audioCtxRef = useRef<AudioContext | null>(null);
   const soundBuffersRef = useRef<Partial<Record<SoundKey, AudioBuffer>>>({});
+  const helloPlayedRef = useRef(false);
 
   const playSound = (soundKey: SoundKey) => {
     const audioCtx = audioCtxRef.current;
@@ -122,13 +127,14 @@ function App() {
       const target = event.target;
       if (!(target instanceof Element)) return;
 
-      const clickedButton = target.closest("button");
-      if (!clickedButton || clickedButton.hasAttribute("disabled")) return;
-
-      if (clickedButton.classList.contains("welcomeContinue")) {
+      if (!helloPlayedRef.current) {
+        helloPlayedRef.current = true;
         playSound("hello");
         return;
       }
+
+      const clickedButton = target.closest("button");
+      if (!clickedButton || clickedButton.hasAttribute("disabled")) return;
 
       const isStartButton = clickedButton.classList.contains("startButton");
       playSound(isStartButton ? "startPress" : "buttonClick");
@@ -161,10 +167,13 @@ function App() {
     <div style={themeStyle}>
       {showSettings ? (
         <SettingsScreen onBack={() => setShowSettings(false)} />
+      ) : showAchievements ? (
+        <AchievementsScreen onBack={() => setShowAchievements(false)} unlockedIds={unlockedIds} unlockedDates={unlockedDates} />
       ) : showWelcome ? (
         <WelcomeScreen
           onContinue={() => setShowWelcome(false)}
           onSettings={() => setShowSettings(true)}
+          onAchievements={() => setShowAchievements(true)}
         />
       ) : (
         <MainPage
@@ -173,6 +182,10 @@ function App() {
           onTriggerInitiated={handleTriggerInitiated}
           onBreakSessionStart={handleBreakSessionStart}
           onBreakSessionEnd={handleBreakSessionEnd}
+          onLockInComplete={(hadStrikes, hadPause) =>
+            recordSession({ mode: "lockIn", hadStrikes, hadPause })
+          }
+          onLongBreakComplete={() => recordSession({ mode: "longBreak" })}
           onBack={() => setShowWelcome(true)}
         />
       )}
