@@ -4,12 +4,21 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 import asyncio
 import json
 import os
+import threading
 
 from lockin_backend.camera import CameraManager
 from lockin_backend.faceService import FaceService
 from lockin_backend.faceCalibration import FaceCalibration
 from lockin_backend.stateMachine import StateMachine
-from lockin_backend.schemas import DetectionState, SessionResponse, StatusPayload, CalibrationData
+from lockin_backend.schemas import (
+    CalibrationData,
+    DetectionState,
+    SessionResponse,
+    StatusPayload,
+    WaterTriggerActionResponse,
+    WaterTriggerStatusResponse,
+)
+from lockin_backend.waterTrigger import WaterTrigger
 
 app = FastAPI(title="LockIn Buddy API")
 
@@ -32,22 +41,53 @@ def _camera_index_from_env() -> int:
         return 0
 
 
+def _bool_from_env(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _int_from_env(name: str, default: int) -> int:
+    raw = os.environ.get(name, str(default))
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"[LockIn] Invalid {name}={raw!r}, using {default}")
+        return default
+
+
 # Default is 0 (works on Windows). Mac users with OBS Virtual Camera on index 0
 # should set LOCKIN_CAMERA_INDEX=1 to use the built-in webcam, e.g.:
 #   LOCKIN_CAMERA_INDEX=1 python3 -m uvicorn main:app --reload
 _camera_index = _camera_index_from_env()
 _cv2_preview = os.environ.get("LOCKIN_CV2_PREVIEW", "0") == "1"
+_water_trigger_enabled = _bool_from_env("LOCKIN_WATER_TRIGGER_ENABLED", default=False)
+_water_trigger_port = os.environ.get("LOCKIN_WATER_TRIGGER_PORT", "COM5")
+_water_trigger_baud = _int_from_env("LOCKIN_WATER_TRIGGER_BAUD", 115200)
 
 # Shared camera manager — opened once at startup, never released until shutdown
 camera_manager = CameraManager(camera_index=_camera_index)
 
 face_service = FaceService(camera_manager=camera_manager, debug=True, cv2_preview=_cv2_preview)
 calibration_service = FaceCalibration(camera_manager=camera_manager)
+water_trigger = WaterTrigger(
+    port=_water_trigger_port,
+    baud=_water_trigger_baud,
+    enabled=_water_trigger_enabled,
+)
 
 print(
     f"[LockIn] Using camera index {_camera_index} "
     "(set env LOCKIN_CAMERA_INDEX to override; Mac users with OBS may need 1)."
 )
+if _water_trigger_enabled:
+    print(
+        f"[LockIn] Water trigger enabled on {_water_trigger_port} "
+        f"at {_water_trigger_baud} baud."
+    )
+else:
+    print("[LockIn] Water trigger disabled (set LOCKIN_WATER_TRIGGER_ENABLED=1 to enable).")
 
 # ── Calibration persistence ────────────────────────────────────────────────────
 from pathlib import Path as _Path
@@ -79,6 +119,9 @@ _ws_clients: list[WebSocket] = []
 
 
 _last_broadcast_state = DetectionState.UNKNOWN
+_strike_lock = threading.Lock()
+_session_strike_count = 0
+_already_fired_this_session = False
 
 
 async def _broadcast(state: DetectionState):
@@ -93,6 +136,30 @@ async def _broadcast(state: DetectionState):
     for ws in disconnected:
         _ws_clients.remove(ws)
 
+
+def _reset_session_alert_tracking():
+    global _session_strike_count, _already_fired_this_session
+    with _strike_lock:
+        _session_strike_count = 0
+        _already_fired_this_session = False
+
+
+def _handle_stable_state_transition(state: DetectionState):
+    global _session_strike_count, _already_fired_this_session
+    should_press = False
+
+    if state == DetectionState.ALERT:
+        with _strike_lock:
+            _session_strike_count += 1
+            if _session_strike_count == 3 and not _already_fired_this_session:
+                _already_fired_this_session = True
+                should_press = True
+
+    if should_press:
+        result = water_trigger.press()
+        if not result["ok"] and result["error"]:
+            print(f"[LockIn] Water trigger press failed: {result['error']}")
+
 def _broadcast_if_changed():
     """Forward only stable debounced state transitions to WebSocket clients."""
     global _last_broadcast_state
@@ -100,6 +167,7 @@ def _broadcast_if_changed():
     if current_state == _last_broadcast_state:
         return
     _last_broadcast_state = current_state
+    _handle_stable_state_transition(current_state)
     if _loop is not None:
         asyncio.run_coroutine_threadsafe(_broadcast(current_state), _loop)
 
@@ -121,12 +189,17 @@ async def _startup():
     # Open camera + load model once (the slow ~6-7 s cost) so session/calibration
     # start instantly from here on.
     camera_manager.open()
+    if _water_trigger_enabled:
+        result = await asyncio.to_thread(water_trigger.connect)
+        if not result["ok"] and result["error"]:
+            print(f"[LockIn] Water trigger unavailable at startup: {result['error']}")
 
 
 @app.on_event("shutdown")
 async def _shutdown():
     face_service.stop()
     calibration_service.stop()
+    await asyncio.to_thread(water_trigger.close)
     camera_manager.close()
 
 
@@ -201,6 +274,7 @@ async def start_session():
     global _last_broadcast_state
     state_machine.reset()
     _last_broadcast_state = state_machine.state
+    _reset_session_alert_tracking()
     face_service.start()
     return SessionResponse(running=True, message="Session started")
 
@@ -211,6 +285,7 @@ async def stop_session():
     face_service.stop()
     state_machine.reset()
     _last_broadcast_state = state_machine.state
+    _reset_session_alert_tracking()
     return SessionResponse(running=False, message="Session stopped")
 
 
@@ -271,3 +346,38 @@ async def calibration_reset():
     if _CALIBRATION_FILE.exists():
         _CALIBRATION_FILE.unlink()
     return SessionResponse(running=False, message="Calibration reset to defaults")
+
+
+@app.get("/water-trigger/status", response_model=WaterTriggerStatusResponse)
+async def water_trigger_status():
+    return WaterTriggerStatusResponse(**water_trigger.status())
+
+
+@app.post("/water-trigger/test", response_model=WaterTriggerActionResponse)
+async def water_trigger_test():
+    if not _water_trigger_enabled:
+        status = water_trigger.status()
+        return WaterTriggerActionResponse(
+            ok=False,
+            enabled=status["enabled"],
+            connected=status["connected"],
+            error="Water trigger is disabled.",
+        )
+
+    result = await asyncio.to_thread(water_trigger.press)
+    return WaterTriggerActionResponse(**result)
+
+
+@app.post("/water-trigger/reconnect", response_model=WaterTriggerActionResponse)
+async def water_trigger_reconnect():
+    if not _water_trigger_enabled:
+        status = water_trigger.status()
+        return WaterTriggerActionResponse(
+            ok=False,
+            enabled=status["enabled"],
+            connected=status["connected"],
+            error="Water trigger is disabled.",
+        )
+
+    result = await asyncio.to_thread(water_trigger.reconnect)
+    return WaterTriggerActionResponse(**result)
