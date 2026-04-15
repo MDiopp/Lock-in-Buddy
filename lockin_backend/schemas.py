@@ -23,3 +23,17 @@ class SessionResponse(BaseModel):
 class CalibrationData(BaseModel):
     yaw_center: float
     pitch_center: float
+
+
+class WaterTriggerActionResponse(BaseModel):
+    ok: bool
+    enabled: bool
+    connected: bool
+    error: str | None = None
+
+
+class WaterTriggerStatusResponse(BaseModel):
+    enabled: bool
+    connected: bool
+    port: str
+    error: str | None = None
