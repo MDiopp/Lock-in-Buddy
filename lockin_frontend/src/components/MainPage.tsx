@@ -48,6 +48,8 @@ export default function MainPage({
   onTriggerInitiated,
   onBreakSessionStart,
   onBreakSessionEnd,
+  onLockInComplete,
+  onLongBreakComplete,
   onBack,
 }: {
   activeMode: ButtonMode;
@@ -55,6 +57,8 @@ export default function MainPage({
   onTriggerInitiated: (trigger: TriggerEvent) => void;
   onBreakSessionStart: (mode: "shortBreak" | "longBreak") => void;
   onBreakSessionEnd: () => void;
+  onLockInComplete: (hadStrikes: boolean, hadPause: boolean) => void;
+  onLongBreakComplete: () => void;
   onBack: () => void;
 }) {
   const [isRunningScreen, setIsRunningScreen] = useState(false);
@@ -63,6 +67,8 @@ export default function MainPage({
   const [endSessionAfterTrigger, setEndSessionAfterTrigger] = useState(false);
   const [modeDurations, setModeDurations] = useState<ModeDurations>(() => loadSavedDurations());
   const endBreakSoundPlayedRef = useRef(false);
+  const sessionHadStrikesRef = useRef(false);
+  const sessionHadPauseRef = useRef(false);
 
   const { minutes, seconds, isRunning, isFinished, start, pause, toggle, reset } = useTimer(
     modeDurations[activeMode],
@@ -113,12 +119,14 @@ export default function MainPage({
     if (endBreakSoundPlayedRef.current) return;
     endBreakSoundPlayedRef.current = true;
     onBreakSessionEnd();
+    if (activeMode === "longBreak") onLongBreakComplete();
     exitRunningSession();
   }, [isRunningScreen, activeMode, isFinished, onBreakSessionEnd]);
 
   useDetectionSession({
     enabled: isRunningScreen && activeMode === "lockIn",
     onStrike: (strikeCount) => {
+      sessionHadStrikesRef.current = true;
       if (strikeCount === 1) {
         triggerEvent("mad1");
       } else if (strikeCount === 2) {
@@ -131,6 +139,8 @@ export default function MainPage({
   });
 
   const handleStart = () => {
+    sessionHadStrikesRef.current = false;
+    sessionHadPauseRef.current = false;
     if (activeMode === "shortBreak") {
       onBreakSessionStart("shortBreak");
     } else if (activeMode === "longBreak") {
@@ -148,7 +158,15 @@ export default function MainPage({
   };
 
   const handleTrigger = (event: TriggerEvent) => {
+    if (event === "success") {
+      onLockInComplete(sessionHadStrikesRef.current, sessionHadPauseRef.current);
+    }
     triggerEvent(event);
+  };
+
+  const handleTogglePause = () => {
+    if (isRunning) sessionHadPauseRef.current = true;
+    toggle();
   };
 
   const handleDurationChange = (value: number) => {
@@ -189,7 +207,7 @@ export default function MainPage({
         minutes={minutes}
         seconds={seconds}
         isRunning={isRunning}
-        onTogglePause={toggle}
+        onTogglePause={handleTogglePause}
         onSkip={handleSkip}
         onTrigger={handleTrigger}
         isFinished={isFinished}

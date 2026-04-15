@@ -26,7 +26,7 @@ export default function WelcomeScreen({
             Welcome to
           </h2>
           <h1 className="text-[clamp(1.875rem,5vw+0.5rem,3rem)] leading-snug text-[var(--classicWhite)]">
-            LockIn Buddy!
+            Lock-In Buddy!
           </h1>
         </div>
         <p className="mt-[clamp(1rem,2.5vw,1.25rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] text-[var(--lighterGreen)]">
@@ -38,21 +38,21 @@ export default function WelcomeScreen({
             void requestNotificationPermission();
             onContinue();
           }}
-          className="welcomeContinue cursor-pointer mt-[clamp(1.75rem,4vw,2.5rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
+          className="cursor-pointer mt-[clamp(1.75rem,4vw,2.5rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
         >
           Continue
         </button>
         <button
           type="button"
           onClick={onAchievements}
-          className="welcomeContinue cursor-pointer mt-[clamp(0.5rem,1.5vw,0.75rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
+          className="cursor-pointer mt-[clamp(0.5rem,1.5vw,0.75rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
         >
           Achievements
         </button>
         <button
           type="button"
           onClick={onSettings}
-          className="welcomeContinue cursor-pointer mt-[clamp(0.5rem,1.5vw,0.75rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
+          className="cursor-pointer mt-[clamp(0.5rem,1.5vw,0.75rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
         >
           Settings
         </button>
