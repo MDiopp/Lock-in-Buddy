@@ -1,3 +1,10 @@
+// -------------------------------------------------------------------------------- //
+// Calibration — full-screen calibration wizard. Starts the backend calibration     //
+// stream on mount (and stops it on unmount), shows a live camera preview alongside //
+// step-by-step instructions, and captures the user's current head pose as the      //
+// "locked in" reference via a single POST to /calibration/capture. Calls onDone    //
+// when the capture succeeds.                                                       //
+// -------------------------------------------------------------------------------- //
 import { useEffect, useState } from "react";
 
 const API = import.meta.env.VITE_LOCKIN_API_URL ?? "http://localhost:8000";

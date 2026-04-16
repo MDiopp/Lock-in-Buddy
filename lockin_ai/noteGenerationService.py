@@ -6,17 +6,30 @@ import ollama
 # Allow overriding the Ollama model via env var
 _OLLAMA_MODEL = os.environ.get("LOCKIN_AI_MODEL", "llama3.2")
 
+_INCOMPLETE_TRANSCRIPT_GUIDELINE = (
+    "IMPORTANT: Always generate notes regardless of transcript length or quality. "
+    "If the transcript appears cut off, incomplete, or contains very little content, "
+    "still produce the best notes possible from whatever information is available. "
+    "Never refuse or return empty output due to a short or partial transcript. "
+    "Work with what you have. "
+    "If you believe the transcript is incomplete or was cut off, add exactly one sentence "
+    "at the very top of your response noting this (e.g. 'Note: the transcript appears incomplete.'), "
+    "then continue with the full notes as normal.\n\n"
+)
+
 _STYLE_PROMPTS = {
     "bullet": (
         "You are a study assistant. Convert the following lecture/meeting transcript "
         "into clean, well-organized bullet-point notes. Group related ideas under "
-        "headings. Remove filler words and repetition. Keep all key information.\n\n"
-        "Transcript:\n{transcript}\n\nNotes:"
+        "headings. Remove filler words and repetition. Keep all key information.\n"
+        + _INCOMPLETE_TRANSCRIPT_GUIDELINE
+        + "Transcript:\n{transcript}\n\nNotes:"
     ),
     "summary": (
         "You are a study assistant. Summarize the following transcript into a concise "
-        "summary that captures all the main points and key details. Use clear paragraphs.\n\n"
-        "Transcript:\n{transcript}\n\nSummary:"
+        "summary that captures all the main points and key details. Use clear paragraphs.\n"
+        + _INCOMPLETE_TRANSCRIPT_GUIDELINE
+        + "Transcript:\n{transcript}\n\nSummary:"
     ),
     "cornell": (
         "You are a study assistant. Convert the following transcript into Cornell-style "
@@ -24,7 +37,8 @@ _STYLE_PROMPTS = {
         "1. **Cues** — key questions or keywords in the left margin\n"
         "2. **Notes** — detailed notes on the right\n"
         "3. **Summary** — a brief summary at the bottom\n\n"
-        "Transcript:\n{transcript}\n\nCornell Notes:"
+        + _INCOMPLETE_TRANSCRIPT_GUIDELINE
+        + "Transcript:\n{transcript}\n\nCornell Notes:"
     ),
 }
 

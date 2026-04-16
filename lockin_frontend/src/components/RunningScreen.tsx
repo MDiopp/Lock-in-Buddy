@@ -1,3 +1,11 @@
+// ---------------------------------------------------------------------------- //
+// RunningScreen — fullscreen view shown while a timer session is active.       //
+// Displays BMO's face SVG (swapped by mode and trigger state), a formatted     //
+// MM:SS countdown, pause/skip controls, and trigger overlay panels with        //
+// escalating tint colors (mad1 → mad2 → mad3). Shows confetti on the "success" //
+// trigger (session complete). Purely presentational — all state is owned by    //
+// MainPage and passed in as props.                                             //
+// ---------------------------------------------------------------------------- //
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import type { ButtonMode } from "./TypeButton";

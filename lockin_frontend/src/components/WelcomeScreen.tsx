@@ -1,3 +1,9 @@
+// ----------------------------------------------------------------------------- //
+// WelcomeScreen — the landing page shown the first time the app opens (or after //
+// navigating back from the chooser). Displays the Lock-In Buddy title, a short  //
+// tagline, and three action buttons: Continue (goes to ModeChooser), Settings,  //
+// and Achievements. Also requests notification permission on Continue.          //
+// ----------------------------------------------------------------------------- //
 import plusSvg from "../assets/Plus.svg";
 import buttonsSvg from "../assets/buttons.svg";
 import { requestNotificationPermission } from "../hooks/notifications";

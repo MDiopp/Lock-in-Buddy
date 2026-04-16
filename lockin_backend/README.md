@@ -28,11 +28,31 @@ camera.py (CameraManager)
       │  stable DetectionState
       ▼
  main.py (FastAPI)       ← exposes state over HTTP + WebSocket
+  ├── strike counter — tracks ALERT count per session
+  └── on 3rd strike → waterTrigger.py (serial → Arduino/MCU → water spray)
+      │
+      │  serial PRESS command (pyserial)
+      ▼
+ waterTrigger.py         ← optional hardware integration
+  ├── connects to a serial port (e.g. COM5 / /dev/ttyUSB0)
+  ├── sends "PRESS\n" to fire the water spray mechanism
+  └── thread-safe, reconnectable, gracefully disabled if not configured
 ```
 
 ---
 
 ## Files
+
+| File | Purpose |
+|---|---|
+| `camera.py` | Owns the single `cv2.VideoCapture` and `FaceLandmarker` instance |
+| `faceService.py` | Runs the detection loop; emits `DetectionState` per frame |
+| `faceCalibration.py` | Lightweight calibration loop for capturing head-pose baseline |
+| `stateMachine.py` | Debounce and escalation logic on top of raw frame states |
+| `waterTrigger.py` | Optional serial-port hardware integration — fires a water spray mechanism |
+| `schemas.py` | Shared Pydantic models for the backend and API |
+
+---
 
 ### `camera.py`
 Owns the single `cv2.VideoCapture` and `FaceLandmarker` instance for the whole application.
@@ -60,6 +80,8 @@ Defines the shared data models used across the package and the API.
 - **`StatusPayload`** — API response model wrapping a `DetectionState`
 - **`SessionResponse`** — API response model for start/stop session endpoints
 - **`CalibrationData`** — stores `yaw_center` and `pitch_center` floats for a captured calibration pose
+- **`WaterTriggerStatusResponse`** — current state of the water trigger hardware (`enabled`, `connected`, `port`, `error`)
+- **`WaterTriggerActionResponse`** — result of a press/reconnect action (`ok`, `enabled`, `connected`, `error`)
 
 ---
 
@@ -123,6 +145,35 @@ Holds pre-trained `.task` model files for MediaPipe's Tasks API. See [`models/RE
 
 ---
 
+### `waterTrigger.py`
+Optional hardware integration that fires a physical water-spray mechanism when the user has been distracted too many times in a session.
+
+Communicates with an Arduino or compatible microcontroller over a serial port using **pyserial**. The MCU listens for the ASCII command `PRESS\n` and activates a relay or servo to trigger the spray.
+
+**Key methods:**
+- `connect()` — open the serial port; waits `settle_seconds` (default 2s) after opening so the Arduino finishes resetting
+- `reconnect()` — close and re-open the port (useful after a disconnect)
+- `press()` — send `PRESS\n` over serial; returns a result dict with `ok`, `enabled`, `connected`, and `error`
+- `close()` — release the serial port (called at app shutdown)
+- `status()` — returns current `enabled`, `connected`, `port`, and last `error`
+
+**Behaviour notes:**
+- Completely **opt-in** — disabled by default; must set `LOCKIN_WATER_TRIGGER_ENABLED=1` to activate
+- If `pyserial` is not installed, the class degrades gracefully and all operations return an error result
+- Thread-safe with separate locks for serial I/O and state reads
+- Duplicate error messages are **deduplicated** in logs — the same failure is only printed once
+- The water trigger fires at most **once per session**: `main.py` counts ALERT strikes and only calls `press()` on the 3rd strike within a session; the flag resets when a new session starts
+
+**Strike logic (in `main.py`):**
+```
+Strike 1 → frontend shows "hey focus…"   (mad1)
+Strike 2 → frontend shows "lock in…"     (mad2)
+Strike 3 → frontend shows "LOCK IN!!!"   (mad3)
+          → water trigger fires (once per session)
+```
+
+---
+
 ## Data Flow Example
 
 ```
@@ -137,12 +188,20 @@ t=2s   User still looking down
 t=3s   User still looking down — threshold crossed
          → StateMachine sets state = ALERT
          → on_alert() fires → main.py broadcasts {"state": "ALERT"} over WebSocket
-         → Tauri frontend receives event → triggers BMO alert sequence
+         → Tauri frontend receives event → triggers BMO alert sequence (strike 1 → mad1)
 
 t=3.5s User looks back up
          → FaceService emits LOCKED_IN
          → StateMachine resets distraction timer, state = LOCKED_IN
          → 3s cooldown still active (next alert won't fire until t=6s)
+
+…      (same pattern repeats for strike 2 → mad2, strike 3 → mad3)
+
+       On the 3rd ALERT strike in the session:
+         → main.py calls water_trigger.press()
+         → "PRESS\n" is sent over serial to the Arduino
+         → Arduino activates the relay/servo → water spray fires
+         → strike flag is set; no further sprays until the next session starts
 ```
 
 ---
@@ -157,6 +216,7 @@ t=3.5s User looks back up
 | Pitch min (ratio) | 0.49 | `FaceService.PITCH_MIN` |
 | Pitch max (ratio) | 0.62 | `FaceService.PITCH_MAX` |
 | Phone detection confidence | 0.4 | `_try_load_phone_detector()` in `faceService.py` |
+| Strikes before water trigger | 3 | `_handle_stable_state_transition()` in `main.py` |
 
 > Yaw/pitch values are landmark ratios (0–1), not degrees. See `faceService._get_face_direction()` for the formula.
 
@@ -198,6 +258,9 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:8000/session/stop"
 |---|---|---|
 | `LOCKIN_CAMERA_INDEX` | `0` | Which camera to open (`0` = first webcam) |
 | `LOCKIN_CV2_PREVIEW` | `0` | Set to `1` to open a native OpenCV preview window |
+| `LOCKIN_WATER_TRIGGER_ENABLED` | `0` | Set to `1` to enable the serial water-trigger hardware |
+| `LOCKIN_WATER_TRIGGER_PORT` | `COM5` | Serial port the Arduino is connected to (e.g. `/dev/ttyUSB0` on Linux/Mac) |
+| `LOCKIN_WATER_TRIGGER_BAUD` | `115200` | Baud rate for the serial connection |
 
 ---
 
@@ -213,5 +276,8 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:8000/session/stop"
 | `POST` | `/calibration/stop` | Stop calibration preview loop |
 | `POST` | `/calibration/capture` | Capture current head pose and save to `calibration.json` |
 | `POST` | `/calibration/reset` | Delete saved calibration and revert to defaults |
+| `GET` | `/water-trigger/status` | Current hardware connection state and any error |
+| `POST` | `/water-trigger/test` | Manually fire the water trigger (for testing wiring) |
+| `POST` | `/water-trigger/reconnect` | Close and reopen the serial port |
 | `GET` | `/debug/preview` | HTML page with live MJPEG camera preview |
 | `GET` | `/debug/preview/stream` | Raw MJPEG stream (shows calibration preview when calibrating) |

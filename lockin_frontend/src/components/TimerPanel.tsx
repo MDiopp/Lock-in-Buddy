@@ -1,3 +1,9 @@
+// ------------------------------------------------------------------------------- //
+// TimerPanel — displays the current countdown (MM:SS) and a stepper input for     //
+// adjusting the session length in minutes. The Start button requests notification //
+// permission then fires onStart. Up/down chevron buttons and direct number input  //
+// are supported for duration changes. Used inside MainPage's green card.          //
+// ------------------------------------------------------------------------------- //
 import { requestNotificationPermission } from "../hooks/notifications";
 
 function StepChevron({ direction }: { direction: "up" | "down" }) {

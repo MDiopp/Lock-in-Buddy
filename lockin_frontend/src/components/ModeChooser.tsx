@@ -1,3 +1,9 @@
+// ----------------------------------------------------------------------------- //
+// ModeChooser — screen shown after the welcome page that lets the user pick     //
+// between the two main modes: "Lock In" (focus session with face detection) and //
+// "Note Taker" (microphone transcription + AI note generation). Each option has //
+// a short description card and a start button. Includes a back button.          //
+// ----------------------------------------------------------------------------- //
 export default function ModeChooser({
   onLockIn,
   onNoteTaker,

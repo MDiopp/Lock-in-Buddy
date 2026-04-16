@@ -1,3 +1,9 @@
+// ------------------------------------------------------------------------------- //
+// SettingsScreen — settings page accessible from the WelcomeScreen. Lets the      //
+// user launch the face calibration flow (captures a new locked-in head pose via   //
+// the backend) or reset the calibration to its default. Shows modal confirmations //
+// after each action. Embeds the Calibration component inline when calibrating.    //
+// ------------------------------------------------------------------------------- //
 import { useState } from "react";
 import Calibration from "./Calibration";
 

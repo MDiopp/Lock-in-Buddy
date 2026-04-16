@@ -203,6 +203,8 @@ When the backend sends an `ALERT` state over WebSocket, `useDetectionSession` in
 
 After 3 strikes the counter stops incrementing. When the user looks back at the screen (`LOCKED_IN`), the `alertConsumed` flag resets so the next distraction can trigger again.
 
+> **Hardware note:** the backend independently tracks the same strike count. On the 3rd ALERT in a session it sends a `PRESS` command over serial to the water-trigger hardware (if enabled). This fires exactly once per session regardless of how many more ALERTs follow.
+
 ---
 
 ## Environment Variables

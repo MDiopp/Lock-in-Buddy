@@ -1,9 +1,13 @@
+// ------------------------------------------------------------------------------- //
+// AchievementsScreen — displays the full list of unlockable achievements with     //
+// trophy icons (easy/medium/hard), unlock dates, and a locked/unlocked state.     //
+// Achievements are passed in as already-resolved props (unlockedIds + dates) from //
+// App via useAchievements. Includes a scrollable card grid and a back button.     //
+// ------------------------------------------------------------------------------- //
 import { useState } from "react";
 import easyTrophy from "../assets/OkayTrophy.svg";
 import mediumTrophy from "../assets/GoodTrophy.svg";
 import hardTrophy from "../assets/BestTrophy.svg";
-import plusSvg from "../assets/Plus.svg";
-import buttonsSvg from "../assets/buttons.svg";
 
 type Difficulty = "easy" | "medium" | "hard";
 
@@ -118,10 +122,6 @@ function AchievementCard({
       <span className="text-center text-[1em] font-semibold text-[var(--classicWhite)]">
         {achievement.title}
       </span>
-      <div className="flex w-full items-center justify-between px-[0.5em]">
-        <img src={plusSvg} alt="" className="h-[1.2em] w-auto object-contain opacity-60" />
-        <img src={buttonsSvg} alt="" className="h-[1.2em] w-auto object-contain opacity-60" />
-      </div>
     </button>
   );
 }
