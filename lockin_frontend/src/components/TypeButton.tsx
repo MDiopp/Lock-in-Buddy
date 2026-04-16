@@ -1,3 +1,8 @@
+// ----------------------------------------------------------------------------- //
+// TypeButton — single pill-shaped tab button used in ModeSelector. Renders with //
+// a filled green style when active and an outlined/ghost style when inactive.   //
+// Also exports the ButtonMode union type used across the app.                   //
+// ----------------------------------------------------------------------------- //
 export type ButtonMode = "lockIn" | "shortBreak" | "longBreak";
 
 function TypeButton({

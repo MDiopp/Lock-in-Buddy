@@ -1,3 +1,10 @@
+// ------------------------------------------------------------------------ //
+// useAchievements — manages the full achievement lifecycle: loading/saving //
+// unlocked IDs and stats from localStorage, unlocking trophies based on    //
+// session results (lockIn / longBreak / noteTaking), and returning newly-  //
+// unlocked IDs so callers can display a toast. Also auto-unlocks "welcome" //
+// on first load. Exposes { unlockedIds, unlockedDates, recordSession }.    //
+// ------------------------------------------------------------------------ //
 import { useState, useCallback } from "react";
 
 const UNLOCKED_KEY = "lockin-buddy-unlocked";
@@ -8,6 +15,8 @@ type AchievementStats = {
   longBreakCompleted: boolean;
   consecutiveDays: number;
   lastSessionDateStr: string;
+  totalNoteSessions: number;
+  noteStylesUsed: string[];
 };
 
 const DEFAULT_STATS: AchievementStats = {
@@ -15,11 +24,14 @@ const DEFAULT_STATS: AchievementStats = {
   longBreakCompleted: false,
   consecutiveDays: 0,
   lastSessionDateStr: "",
+  totalNoteSessions: 0,
+  noteStylesUsed: [],
 };
 
 export type SessionResult =
   | { mode: "lockIn"; hadStrikes: boolean; hadPause: boolean }
-  | { mode: "longBreak" };
+  | { mode: "longBreak" }
+  | { mode: "noteTaking"; noteStyle: "bullet" | "summary" | "cornell" };
 
 function loadUnlocked(): Record<string, string> {
   try {
@@ -74,15 +86,15 @@ export function useAchievements() {
 
   const unlockedIds = new Set(Object.keys(unlockedDates));
 
-  const recordSession = useCallback((result: SessionResult) => {
+  const recordSession = useCallback((result: SessionResult): string[] => {
     const stats = loadStats();
     const current = loadUnlocked();
-    let changed = false;
+    const newlyUnlocked: string[] = [];
 
     const unlock = (id: string) => {
       if (!(id in current)) {
         current[id] = todayStr();
-        changed = true;
+        newlyUnlocked.push(id);
       }
     };
 
@@ -114,11 +126,33 @@ export function useAchievements() {
       if (stats.consecutiveDays >= 2) unlock("daily_streak");
     }
 
+    if (result.mode === "noteTaking") {
+      stats.totalNoteSessions += 1;
+
+      if (!stats.noteStylesUsed.includes(result.noteStyle)) {
+        stats.noteStylesUsed = [...stats.noteStylesUsed, result.noteStyle];
+      }
+
+      if (stats.totalNoteSessions >= 1) unlock("note_generated");
+      if (stats.totalNoteSessions >= 3) unlock("three_note_sessions");
+      if (stats.totalNoteSessions >= 5) unlock("five_note_sessions");
+
+      if (stats.noteStylesUsed.includes("cornell")) unlock("cornell_notes");
+      if (
+        stats.noteStylesUsed.includes("bullet") &&
+        stats.noteStylesUsed.includes("summary") &&
+        stats.noteStylesUsed.includes("cornell")
+      ) {
+        unlock("all_note_styles");
+      }
+    }
+
     saveStats(stats);
-    if (changed) {
+    if (newlyUnlocked.length > 0) {
       saveUnlocked(current);
       setUnlockedDates({ ...current });
     }
+    return newlyUnlocked;
   }, []);
 
   return { unlockedIds, unlockedDates, recordSession };

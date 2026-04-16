@@ -3,8 +3,11 @@ import "./App.css";
 
 import WelcomeScreen from "./components/WelcomeScreen";
 import SettingsScreen from "./components/SettingsScreen";
+import ModeChooser from "./components/ModeChooser";
 import MainPage from "./components/MainPage";
+import NoteTaker from "./components/NoteTaker";
 import AchievementsScreen from "./components/AchievementsScreen";
+import AchievementToast from "./components/AchievementToast";
 import type { ButtonMode } from "./components/TypeButton";
 import { themeByMode } from "./modes/themeByMode";
 import type { TriggerEvent } from "./modes/types";
@@ -56,8 +59,14 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [appMode, setAppMode] = useState<"chooser" | "lockin" | "notetaker" | null>(null);
   const [activeMode, setActiveMode] = useState<ButtonMode>("lockIn");
   const { unlockedIds, unlockedDates, recordSession } = useAchievements();
+  const [toastQueue, setToastQueue] = useState<string[]>([]);
+
+  const pushToasts = (ids: string[]) => {
+    if (ids.length > 0) setToastQueue((q) => [...q, ...ids]);
+  };
   const audioCtxRef = useRef<AudioContext | null>(null);
   const soundBuffersRef = useRef<Partial<Record<SoundKey, AudioBuffer>>>({});
   const helloPlayedRef = useRef(false);
@@ -127,14 +136,14 @@ function App() {
       const target = event.target;
       if (!(target instanceof Element)) return;
 
-      if (!helloPlayedRef.current) {
+      const clickedButton = target.closest("button");
+      if (!clickedButton || clickedButton.hasAttribute("disabled")) return;
+
+      if (!helloPlayedRef.current && clickedButton.classList.contains("welcomeNavBtn")) {
         helloPlayedRef.current = true;
         playSound("hello");
         return;
       }
-
-      const clickedButton = target.closest("button");
-      if (!clickedButton || clickedButton.hasAttribute("disabled")) return;
 
       const isStartButton = clickedButton.classList.contains("startButton");
       playSound(isStartButton ? "startPress" : "buttonClick");
@@ -171,11 +180,16 @@ function App() {
         <AchievementsScreen onBack={() => setShowAchievements(false)} unlockedIds={unlockedIds} unlockedDates={unlockedDates} />
       ) : showWelcome ? (
         <WelcomeScreen
-          onContinue={() => setShowWelcome(false)}
+          onContinue={() => { setShowWelcome(false); setAppMode("chooser"); }}
           onSettings={() => setShowSettings(true)}
           onAchievements={() => setShowAchievements(true)}
         />
-      ) : (
+      ) : appMode === "notetaker" ? (
+        <NoteTaker
+          onBack={() => setAppMode("chooser")}
+          onNotesGenerated={(style) => pushToasts(recordSession({ mode: "noteTaking", noteStyle: style }))}
+        />
+      ) : appMode === "lockin" ? (
         <MainPage
           activeMode={activeMode}
           onModeChange={setActiveMode}
@@ -183,12 +197,22 @@ function App() {
           onBreakSessionStart={handleBreakSessionStart}
           onBreakSessionEnd={handleBreakSessionEnd}
           onLockInComplete={(hadStrikes, hadPause) =>
-            recordSession({ mode: "lockIn", hadStrikes, hadPause })
+            pushToasts(recordSession({ mode: "lockIn", hadStrikes, hadPause }))
           }
-          onLongBreakComplete={() => recordSession({ mode: "longBreak" })}
-          onBack={() => setShowWelcome(true)}
+          onLongBreakComplete={() => pushToasts(recordSession({ mode: "longBreak" }))}
+          onBack={() => setAppMode("chooser")}
+        />
+      ) : (
+        <ModeChooser
+          onLockIn={() => setAppMode("lockin")}
+          onNoteTaker={() => setAppMode("notetaker")}
+          onBack={() => { setShowWelcome(true); setAppMode(null); }}
         />
       )}
+      <AchievementToast
+        queue={toastQueue}
+        onDismiss={(id) => setToastQueue((q) => q.filter((x) => x !== id))}
+      />
     </div>
   );
 }

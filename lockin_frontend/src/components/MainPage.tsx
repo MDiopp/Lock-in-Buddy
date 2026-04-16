@@ -1,3 +1,11 @@
+// ------------------------------------------------------------------------------- //
+// MainPage — idle/setup screen for the Lock-In mode. Renders the mode selector    //
+// (lock in / short break / long break), the timer panel with adjustable duration, //
+// and a back button. Persists per-mode durations to localStorage. When the user   //
+// hits Start it transitions to RunningScreen, drives the useTimer and             //
+// useDetectionSession hooks, handles face-detection strikes (mad1/mad2/mad3       //
+// triggers), and fires session-complete callbacks back up to App.                 //
+// ------------------------------------------------------------------------------- //
 import { useEffect, useRef, useState } from "react";
 import ModeSelector from "./ModeSelector";
 import TimerPanel from "./TimerPanel";

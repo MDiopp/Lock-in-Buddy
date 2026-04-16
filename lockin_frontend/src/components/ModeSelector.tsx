@@ -1,3 +1,8 @@
+// -------------------------------------------------------------------------- //
+// ModeSelector — tab row for switching between "lock in", "short break", and //
+// "long break". Renders three TypeButton instances and highlights whichever  //
+// mode is currently active. Used inside MainPage's green card.               //
+// -------------------------------------------------------------------------- //
 import TypeButton, { ButtonMode } from "./TypeButton";
 
 export default function ModeSelector({

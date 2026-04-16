@@ -1,9 +1,15 @@
+// ------------------------------------------------------------------------------- //
+// AchievementsScreen — displays the full list of unlockable achievements with     //
+// trophy icons (easy/medium/hard), unlock dates, and a locked/unlocked state.     //
+// Achievements are passed in as already-resolved props (unlockedIds + dates) from //
+// App via useAchievements. Includes a scrollable card grid and a back button.     //
+// ------------------------------------------------------------------------------- //
 import { useState } from "react";
-import easyTrophy from "../assets/trophy-easy.png";
-import mediumTrophy from "../assets/trophy-medium.png";
-import hardTrophy from "../assets/trophy-hard.png";
-
-type Difficulty = "easy" | "medium" | "hard";
+import easyTrophy from "../assets/OkayTrophy.svg";
+import mediumTrophy from "../assets/GoodTrophy.svg";
+import hardTrophy from "../assets/BestTrophy.svg";
+import { ACHIEVEMENTS } from "../achievements";
+import type { Difficulty, Achievement } from "../achievements";
 
 const TROPHY_IMG: Record<Difficulty, string> = {
   easy: easyTrophy,
@@ -16,21 +22,6 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = {
   medium: "Medium",
   hard: "Hard",
 };
-
-const ACHIEVEMENTS: { id: string; title: string; description: string; difficulty: Difficulty }[] = [
-  { id: "welcome", title: "Welcome!", description: "You opened Lock-in Buddy. The journey begins here.", difficulty: "easy" },
-  { id: "first_session", title: "First Lock-In", description: "Complete your very first lock-in session.", difficulty: "easy" },
-  { id: "three_sessions", title: "On a Roll", description: "Complete 3 lock-in sessions total.", difficulty: "medium" },
-  { id: "perfect_session", title: "Laser Focused", description: "Finish a session with zero strikes and no pauses.", difficulty: "hard" },
-  { id: "five_sessions", title: "Getting Serious", description: "Complete 5 lock-in sessions total.", difficulty: "easy" },
-  { id: "no_strikes", title: "Clean Slate", description: "Finish a session without getting a single strike.", difficulty: "medium" },
-  { id: "long_break", title: "Well Rested", description: "Complete a full long break session.", difficulty: "easy" },
-  { id: "ten_sessions", title: "Dedicated", description: "Complete 10 lock-in sessions total.", difficulty: "medium" },
-  { id: "no_pause", title: "No Distractions", description: "Finish a session without ever pausing.", difficulty: "hard" },
-  { id: "daily_streak", title: "Day One", description: "Use Lock-in Buddy on two consecutive days.", difficulty: "hard" },
-];
-
-type Achievement = (typeof ACHIEVEMENTS)[number];
 
 function AchievementModal({
   achievement,
@@ -104,16 +95,16 @@ function AchievementCard({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full flex-col items-center gap-[0.5em] rounded-xl bg-[var(--customGreen)] p-[0.75em] transition-[opacity,transform] duration-300 hover:scale-[1.04]${unlocked ? "" : " opacity-40"}`}
+      className={`flex w-full flex-col items-center gap-[0.4em] rounded-xl bg-[var(--customGreen)] px-[1em] py-[0.6em] transition-[opacity,transform] duration-300 hover:scale-[1.03]${unlocked ? "" : " opacity-55"}`}
     >
-      <div className="flex w-full items-center justify-center rounded-lg bg-[var(--lighterGreen)] p-[0.75em]">
+      <div className="flex w-full items-center justify-center rounded-lg bg-[var(--lighterGreen)] p-[0.6em]">
         <img
           src={TROPHY_IMG[achievement.difficulty]}
           alt={`${achievement.difficulty} trophy`}
-          className={`h-[clamp(3rem,8cqw,5rem)] w-auto object-contain transition-[filter] duration-300${unlocked ? "" : " grayscale"}`}
+          className={`h-[clamp(3.5rem,12cqw,6rem)] w-auto object-contain transition-[filter] duration-300${unlocked ? "" : " grayscale-[60%]"}`}
         />
       </div>
-      <span className="text-center text-[0.95em] font-medium text-[var(--classicWhite)]">
+      <span className="text-center text-[1em] font-semibold text-[var(--classicWhite)]">
         {achievement.title}
       </span>
     </button>
@@ -176,7 +167,7 @@ export default function AchievementsScreen({
                 disabled={page === 0}
                 className="cursor-pointer rounded-xl bg-[var(--customGreen)] px-[1em] py-[0.4em] text-[1.1em] font-bold text-[var(--classicWhite)] shadow-md transition-[opacity,transform] duration-200 hover:scale-[1.06] disabled:cursor-default disabled:opacity-30"
               >
-                ←
+                &lt;
               </button>
               <span className="text-[0.95em] font-medium text-[var(--customGreen)]">
                 {page + 1} / {totalPages}
@@ -187,7 +178,7 @@ export default function AchievementsScreen({
                 disabled={page === totalPages - 1}
                 className="cursor-pointer rounded-xl bg-[var(--customGreen)] px-[1em] py-[0.4em] text-[1.1em] font-bold text-[var(--classicWhite)] shadow-md transition-[opacity,transform] duration-200 hover:scale-[1.06] disabled:cursor-default disabled:opacity-30"
               >
-                →
+                &gt;
               </button>
             </div>
           )}
