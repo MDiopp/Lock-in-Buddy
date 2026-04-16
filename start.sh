@@ -3,7 +3,7 @@ set -e
 
 # ── Start FastAPI backend in a new terminal tab ────────────────────────────────
 echo "Starting FastAPI backend..."
-osascript -e 'tell application "Terminal" to do script "cd \"'"$PWD"'\" && python3 -m uvicorn main:app --reload"'
+osascript -e 'tell application "Terminal" to do script "cd \"'"$PWD"'\" && LOCKIN_WATER_TRIGGER_ENABLED=1 LOCKIN_WATER_TRIGGER_PORT=COM5 LOCKIN_WATER_TRIGGER_BAUD=115200 python3 -m uvicorn main:app --reload"'
 
 # ── Wait for the server to be ready ───────────────────────────────────────────
 echo "Waiting for server to be ready..."
