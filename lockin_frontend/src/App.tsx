@@ -7,6 +7,7 @@ import ModeChooser from "./components/ModeChooser";
 import MainPage from "./components/MainPage";
 import NoteTaker from "./components/NoteTaker";
 import AchievementsScreen from "./components/AchievementsScreen";
+import AchievementToast from "./components/AchievementToast";
 import type { ButtonMode } from "./components/TypeButton";
 import { themeByMode } from "./modes/themeByMode";
 import type { TriggerEvent } from "./modes/types";
@@ -61,6 +62,11 @@ function App() {
   const [appMode, setAppMode] = useState<"chooser" | "lockin" | "notetaker" | null>(null);
   const [activeMode, setActiveMode] = useState<ButtonMode>("lockIn");
   const { unlockedIds, unlockedDates, recordSession } = useAchievements();
+  const [toastQueue, setToastQueue] = useState<string[]>([]);
+
+  const pushToasts = (ids: string[]) => {
+    if (ids.length > 0) setToastQueue((q) => [...q, ...ids]);
+  };
   const audioCtxRef = useRef<AudioContext | null>(null);
   const soundBuffersRef = useRef<Partial<Record<SoundKey, AudioBuffer>>>({});
   const helloPlayedRef = useRef(false);
@@ -179,7 +185,10 @@ function App() {
           onAchievements={() => setShowAchievements(true)}
         />
       ) : appMode === "notetaker" ? (
-        <NoteTaker onBack={() => setAppMode("chooser")} />
+        <NoteTaker
+          onBack={() => setAppMode("chooser")}
+          onNotesGenerated={(style) => pushToasts(recordSession({ mode: "noteTaking", noteStyle: style }))}
+        />
       ) : appMode === "lockin" ? (
         <MainPage
           activeMode={activeMode}
@@ -188,9 +197,9 @@ function App() {
           onBreakSessionStart={handleBreakSessionStart}
           onBreakSessionEnd={handleBreakSessionEnd}
           onLockInComplete={(hadStrikes, hadPause) =>
-            recordSession({ mode: "lockIn", hadStrikes, hadPause })
+            pushToasts(recordSession({ mode: "lockIn", hadStrikes, hadPause }))
           }
-          onLongBreakComplete={() => recordSession({ mode: "longBreak" })}
+          onLongBreakComplete={() => pushToasts(recordSession({ mode: "longBreak" }))}
           onBack={() => setAppMode("chooser")}
         />
       ) : (
@@ -200,6 +209,10 @@ function App() {
           onBack={() => { setShowWelcome(true); setAppMode(null); }}
         />
       )}
+      <AchievementToast
+        queue={toastQueue}
+        onDismiss={(id) => setToastQueue((q) => q.filter((x) => x !== id))}
+      />
     </div>
   );
 }

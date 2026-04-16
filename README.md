@@ -13,6 +13,7 @@
 - **Strike system** — accumulates up to 3 strikes per session; BMO reacts with escalating reactions and the 3rd strike fires the water trigger
 - **Water trigger hardware** — optional Arduino-based serial integration that physically sprays water when the user hits 3 distractions in a session
 - **Pomodoro-style timer** — configurable session lengths for Lock In (default 25 min), Short Break (5 min), and Long Break (15 min)
+- **Achievement system** — unlock different achievements throughout your lock-in sessions that have varying difficulties
 - **Calibration** — capture your natural seated head position so detection is tuned to you, not a generic default
 - **Persistent settings** — timer durations are saved locally and restored on next launch
 - **Desktop notifications** — notifies you when a session ends even if the window is in the background
@@ -127,13 +128,13 @@ User opens Calibration screen
 **Backend**
 - Python + FastAPI
 - MediaPipe (face landmark detection)
-- OpenCV
+- OpenCV (computer vision library)
 - WebSockets (real-time state streaming)
 - pyserial (optional — serial communication with Arduino water-trigger hardware)
 
 **AI / ML**
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — local speech-to-text (`base.en` model, ~150 MB, downloads automatically)
-- [Ollama](https://ollama.com) — local LLM inference for note generation (default model: `llama3.2`)
+- faster-whisper (local speech-to-text)
+- Ollama (local LLM inference for note generation: default model- `llama3.2`)
 
 ---
 

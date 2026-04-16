@@ -14,7 +14,7 @@ const API_BASE = "http://localhost:8000";
 
 type NoteStyle = "bullet" | "summary" | "cornell";
 
-export default function NoteTaker({ onBack }: { onBack: () => void }) {
+export default function NoteTaker({ onBack, onNotesGenerated }: { onBack: () => void; onNotesGenerated?: (style: NoteStyle) => void }) {
   const { phase, transcript, error, start, pause, resume, stop, reset } =
     useTranscription();
 
@@ -35,6 +35,7 @@ export default function NoteTaker({ onBack }: { onBack: () => void }) {
       if (!res.ok) throw new Error("Note generation failed");
       const data = await res.json();
       setGeneratedNotes(data.notes ?? "");
+      onNotesGenerated?.(noteStyle);
     } catch (err: any) {
       setGenError(err.message ?? "Failed to generate notes");
     } finally {

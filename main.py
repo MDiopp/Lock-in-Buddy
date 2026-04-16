@@ -100,9 +100,15 @@ else:
     print("[LockIn] Water trigger disabled (set LOCKIN_WATER_TRIGGER_ENABLED=1 to enable).")
 
 # ── AI singletons ──────────────────────────────────────────────────────────────
+_ai_disabled = _bool_from_env("LOCKIN_AI_DISABLED", default=False)
 _whisper_model = os.environ.get("LOCKIN_WHISPER_MODEL", "base.en")
-transcription_service = TranscriptionService(model_size=_whisper_model)
-note_service = NoteGenerationService()
+if _ai_disabled:
+    print("[LockIn AI] Disabled (LOCKIN_AI_DISABLED=1). Transcription and note generation unavailable.")
+    transcription_service = None
+    note_service = None
+else:
+    transcription_service = TranscriptionService(model_size=_whisper_model)
+    note_service = NoteGenerationService()
 
 # ── Calibration persistence ────────────────────────────────────────────────────
 from pathlib import Path as _Path
@@ -402,6 +408,8 @@ async def water_trigger_reconnect():
 
 @app.post("/transcription/start", response_model=TranscriptionSessionResponse)
 async def transcription_start():
+    if transcription_service is None:
+        raise HTTPException(status_code=503, detail="AI services are disabled (LOCKIN_AI_DISABLED=1)")
     session = transcription_service.create_session()
     return TranscriptionSessionResponse(
         session_id=session.session_id,
@@ -412,6 +420,8 @@ async def transcription_start():
 
 @app.post("/transcription/{session_id}/pause", response_model=TranscriptionSessionResponse)
 async def transcription_pause(session_id: str):
+    if transcription_service is None:
+        raise HTTPException(status_code=503, detail="AI services are disabled (LOCKIN_AI_DISABLED=1)")
     session = transcription_service.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -425,6 +435,8 @@ async def transcription_pause(session_id: str):
 
 @app.post("/transcription/{session_id}/resume", response_model=TranscriptionSessionResponse)
 async def transcription_resume(session_id: str):
+    if transcription_service is None:
+        raise HTTPException(status_code=503, detail="AI services are disabled (LOCKIN_AI_DISABLED=1)")
     session = transcription_service.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -438,6 +450,8 @@ async def transcription_resume(session_id: str):
 
 @app.post("/transcription/{session_id}/stop", response_model=StopTranscriptionResponse)
 async def transcription_stop(session_id: str):
+    if transcription_service is None:
+        raise HTTPException(status_code=503, detail="AI services are disabled (LOCKIN_AI_DISABLED=1)")
     session = transcription_service.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -456,6 +470,8 @@ async def transcription_stop(session_id: str):
 
 @app.get("/transcription/{session_id}", response_model=StopTranscriptionResponse)
 async def transcription_get(session_id: str):
+    if transcription_service is None:
+        raise HTTPException(status_code=503, detail="AI services are disabled (LOCKIN_AI_DISABLED=1)")
     session = transcription_service.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -468,6 +484,9 @@ async def transcription_get(session_id: str):
 @app.websocket("/transcription/{session_id}/stream")
 async def transcription_stream(websocket: WebSocket, session_id: str):
     """Receive audio chunks from the client, transcribe, and push text back."""
+    if transcription_service is None:
+        await websocket.close(code=4003, reason="AI services disabled")
+        return
     session = transcription_service.get_session(session_id)
     if session is None:
         await websocket.close(code=4004, reason="Session not found")
@@ -500,6 +519,8 @@ async def transcription_stream(websocket: WebSocket, session_id: str):
 
 @app.post("/notes/generate", response_model=NoteGenerationResponse)
 async def notes_generate(req: NoteGenerationRequest):
+    if note_service is None:
+        raise HTTPException(status_code=503, detail="AI services are disabled (LOCKIN_AI_DISABLED=1)")
     if not req.transcript.strip():
         raise HTTPException(status_code=400, detail="Transcript is empty")
 

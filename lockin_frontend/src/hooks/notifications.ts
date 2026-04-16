@@ -1,3 +1,9 @@
+// ----------------------------------------------------------------------------- //
+// notifications — thin cross-platform notification helper used by useTimer.     //
+// Detects whether the app is running inside Tauri and routes to the native      //
+// notification plugin (plugin:notification|notify) or falls back to the Web     //
+// Notifications API. Exports requestNotificationPermission() and notify().      //
+// ----------------------------------------------------------------------------- //
 import { invoke } from "@tauri-apps/api/core";
 import {
   isPermissionGranted as pluginIsPermissionGranted,

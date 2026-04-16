@@ -3,7 +3,7 @@ set -e
 
 # ── Start FastAPI backend (debug mode) in a new terminal tab ──────────────────
 echo "Starting FastAPI backend (debug mode)..."
-osascript -e 'tell application "Terminal" to do script "cd \"'"$PWD"'\" && LOCKIN_CV2_PREVIEW=1 python3 -m uvicorn main:app --reload"'
+osascript -e 'tell application "Terminal" to do script "cd \"'"$PWD"'\" && LOCKIN_CV2_PREVIEW=1 LOCKIN_AI_DISABLED=1 python3 -m uvicorn main:app --reload"'
 
 # ── Wait for the server to be ready ───────────────────────────────────────────
 echo "Waiting for server to be ready..."

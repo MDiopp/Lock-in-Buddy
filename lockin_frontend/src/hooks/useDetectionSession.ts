@@ -1,3 +1,10 @@
+// ---------------------------------------------------------------------------- //
+// useDetectionSession — opens a WebSocket to the backend /ws endpoint and      //
+// translates face-detection state changes (LOCKED_IN / DISTRACTED / ALERT /    //
+// AWAY) into strike callbacks and locked-in confirmations. Starts/stops the    //
+// backend camera session via POST /session/start and /session/stop. Accepts    //
+// { enabled, onStrike, onLockedIn } and cleans up all connections on unmount.  //
+// ---------------------------------------------------------------------------- //
 import { useEffect, useRef } from "react";
 
 type BackendState = "LOCKED_IN" | "DISTRACTED" | "ALERT" | "AWAY" | "UNKNOWN";

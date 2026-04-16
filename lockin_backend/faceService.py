@@ -232,8 +232,8 @@ class FaceService:
                     for lm in results.face_landmarks[0]:
                         cx, cy = int(lm.x * w), int(lm.y * h)
                         cv2.circle(debug_frame, (cx, cy), 1, (0, 255, 0), -1)
-                yr = getattr(self, '_last_yaw_ratio', 0.5)
-                pr = getattr(self, '_last_pitch_ratio', 0.5)
+                yr = self._last_yaw_ratio or 0.5
+                pr = self._last_pitch_ratio or 0.5
                 cv2.putText(
                     debug_frame,
                     f"State: {self.state.value}",

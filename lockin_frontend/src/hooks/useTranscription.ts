@@ -1,3 +1,10 @@
+// ---------------------------------------------------------------------------- //
+// useTranscription — manages a live microphone recording session for the Note  //
+// Taker mode. Creates a backend transcription session, streams PCM audio over  //
+// a WebSocket, and accumulates the rolling transcript in state. Exposes phase  //
+// (idle / recording / paused / stopped), transcript, latestChunk, error, and   //
+// controls: start, pause, resume, stop, reset.                                 //
+// ---------------------------------------------------------------------------- //
 import { useCallback, useRef, useState } from "react";
 
 const API_BASE = "http://localhost:8000";

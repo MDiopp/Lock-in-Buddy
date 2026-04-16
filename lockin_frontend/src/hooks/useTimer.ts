@@ -1,3 +1,9 @@
+// ---------------------------------------------------------------------------- //
+// useTimer — countdown timer hook that takes a length in minutes and exposes   //
+// { secondsLeft, isRunning, start, pause, reset }. Fires a system notification //
+// via notifications.ts exactly once when the countdown reaches zero. Resets    //
+// automatically whenever timerLengthMinutes changes.                           //
+// ---------------------------------------------------------------------------- //
 import { useEffect, useMemo, useRef, useState } from "react";
 import { notify } from "./notifications";
 

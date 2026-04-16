@@ -8,8 +8,8 @@ import { useState } from "react";
 import easyTrophy from "../assets/OkayTrophy.svg";
 import mediumTrophy from "../assets/GoodTrophy.svg";
 import hardTrophy from "../assets/BestTrophy.svg";
-
-type Difficulty = "easy" | "medium" | "hard";
+import { ACHIEVEMENTS } from "../achievements";
+import type { Difficulty, Achievement } from "../achievements";
 
 const TROPHY_IMG: Record<Difficulty, string> = {
   easy: easyTrophy,
@@ -22,21 +22,6 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = {
   medium: "Medium",
   hard: "Hard",
 };
-
-const ACHIEVEMENTS: { id: string; title: string; description: string; difficulty: Difficulty }[] = [
-  { id: "welcome", title: "Welcome!", description: "You opened Lock-in Buddy. The journey begins here.", difficulty: "easy" },
-  { id: "first_session", title: "First Lock-In", description: "Complete your very first lock-in session.", difficulty: "easy" },
-  { id: "three_sessions", title: "On a Roll", description: "Complete 3 lock-in sessions total.", difficulty: "medium" },
-  { id: "perfect_session", title: "Laser Focused", description: "Finish a session with zero strikes and no pauses.", difficulty: "hard" },
-  { id: "five_sessions", title: "Getting Serious", description: "Complete 5 lock-in sessions total.", difficulty: "easy" },
-  { id: "no_strikes", title: "Clean Slate", description: "Finish a session without getting a single strike.", difficulty: "medium" },
-  { id: "long_break", title: "Well Rested", description: "Complete a full long break session.", difficulty: "easy" },
-  { id: "ten_sessions", title: "Dedicated", description: "Complete 10 lock-in sessions total.", difficulty: "medium" },
-  { id: "no_pause", title: "No Distractions", description: "Finish a session without ever pausing.", difficulty: "hard" },
-  { id: "daily_streak", title: "Day One", description: "Use Lock-in Buddy on two consecutive days.", difficulty: "hard" },
-];
-
-type Achievement = (typeof ACHIEVEMENTS)[number];
 
 function AchievementModal({
   achievement,
