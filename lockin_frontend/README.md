@@ -36,7 +36,7 @@ App.tsx                  ← root; owns theme, audio, and top-level screen routi
 
 1. **WelcomeScreen** — shown on first load. "Continue" requests notification permission and enters the main page. "Settings" opens the calibration screen. "Achievements" opens the trophy gallery. The BMO "hello" voice line plays on the very first interaction after launch.
 2. **MainPage** — the primary UI. User picks a mode, sets a duration, and presses **Start**.
-3. **RunningScreen** — fullscreen active-session view. BMO's face animates based on the current trigger state.
+3. **RunningScreen** — active-session view. BMO's face animates based on the current trigger state, and the app window now supports normal maximize/fullscreen behavior through the native window controls.
 
 ### Settings flow
 
@@ -83,7 +83,7 @@ Orchestrates the idle and active states of a session:
 ---
 
 ### `components/RunningScreen.tsx`
-Fullscreen view shown while a session is active. Renders:
+Active-session view shown while a session is running. Renders:
 - **BMO's face** — SVG swapped by mode (`lockIn`, `shortBreak`, `longBreak`) and trigger (`success`, `mad1`, `mad2`, `mad3`)
 - **Timer display** — formatted `MM:SS`
 - **Trigger overlays** — tinted panels with escalating titles ("hey focus…" → "lock in…" → "LOCK IN!!!")
