@@ -38,21 +38,21 @@ export default function WelcomeScreen({
             void requestNotificationPermission();
             onContinue();
           }}
-          className="cursor-pointer mt-[clamp(1.75rem,4vw,2.5rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
+          className="welcomeNavBtn cursor-pointer mt-[clamp(1.75rem,4vw,2.5rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
         >
           Continue
         </button>
         <button
           type="button"
           onClick={onAchievements}
-          className="cursor-pointer mt-[clamp(0.5rem,1.5vw,0.75rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
+          className="welcomeNavBtn cursor-pointer mt-[clamp(0.5rem,1.5vw,0.75rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
         >
           Achievements
         </button>
         <button
           type="button"
           onClick={onSettings}
-          className="cursor-pointer mt-[clamp(0.5rem,1.5vw,0.75rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
+          className="welcomeNavBtn cursor-pointer mt-[clamp(0.5rem,1.5vw,0.75rem)] rounded-2xl bg-[var(--classicWhite)] px-[clamp(1.5rem,4vw,2rem)] py-[clamp(0.5rem,1.5vw,0.75rem)] text-[clamp(1rem,1.35vw+0.8rem,1.25rem)] font-medium text-[var(--customGreen)] shadow-md transition-[color,background-color,transform] duration-300 ease-in-out hover:scale-[1.03] hover:brightness-95 active:scale-[0.98]"
         >
           Settings
         </button>

@@ -127,14 +127,14 @@ function App() {
       const target = event.target;
       if (!(target instanceof Element)) return;
 
-      if (!helloPlayedRef.current) {
+      const clickedButton = target.closest("button");
+      if (!clickedButton || clickedButton.hasAttribute("disabled")) return;
+
+      if (!helloPlayedRef.current && clickedButton.classList.contains("welcomeNavBtn")) {
         helloPlayedRef.current = true;
         playSound("hello");
         return;
       }
-
-      const clickedButton = target.closest("button");
-      if (!clickedButton || clickedButton.hasAttribute("disabled")) return;
 
       const isStartButton = clickedButton.classList.contains("startButton");
       playSound(isStartButton ? "startPress" : "buttonClick");

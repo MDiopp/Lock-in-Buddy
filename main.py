@@ -20,6 +20,16 @@ from lockin_backend.schemas import (
 )
 from lockin_backend.waterTrigger import WaterTrigger
 
+from lockin_ai.transcriptionService import TranscriptionService
+from lockin_ai.noteGenerationService import NoteGenerationService
+from lockin_ai.schemas import (
+    NoteGenerationRequest,
+    NoteGenerationResponse,
+    StopTranscriptionResponse,
+    TranscriptionSessionResponse,
+    TranscriptionState,
+)
+
 app = FastAPI(title="LockIn Buddy API")
 
 app.add_middleware(
@@ -88,6 +98,11 @@ if _water_trigger_enabled:
     )
 else:
     print("[LockIn] Water trigger disabled (set LOCKIN_WATER_TRIGGER_ENABLED=1 to enable).")
+
+# ── AI singletons ──────────────────────────────────────────────────────────────
+_whisper_model = os.environ.get("LOCKIN_WHISPER_MODEL", "base.en")
+transcription_service = TranscriptionService(model_size=_whisper_model)
+note_service = NoteGenerationService()
 
 # ── Calibration persistence ────────────────────────────────────────────────────
 from pathlib import Path as _Path
@@ -381,3 +396,112 @@ async def water_trigger_reconnect():
 
     result = await asyncio.to_thread(water_trigger.reconnect)
     return WaterTriggerActionResponse(**result)
+
+
+# ── Transcription routes ───────────────────────────────────────────────────────
+
+@app.post("/transcription/start", response_model=TranscriptionSessionResponse)
+async def transcription_start():
+    session = transcription_service.create_session()
+    return TranscriptionSessionResponse(
+        session_id=session.session_id,
+        state=session.state,
+        message="Transcription session started",
+    )
+
+
+@app.post("/transcription/{session_id}/pause", response_model=TranscriptionSessionResponse)
+async def transcription_pause(session_id: str):
+    session = transcription_service.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    session.pause()
+    return TranscriptionSessionResponse(
+        session_id=session.session_id,
+        state=session.state,
+        message="Transcription paused",
+    )
+
+
+@app.post("/transcription/{session_id}/resume", response_model=TranscriptionSessionResponse)
+async def transcription_resume(session_id: str):
+    session = transcription_service.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    session.resume()
+    return TranscriptionSessionResponse(
+        session_id=session.session_id,
+        state=session.state,
+        message="Transcription resumed",
+    )
+
+
+@app.post("/transcription/{session_id}/stop", response_model=StopTranscriptionResponse)
+async def transcription_stop(session_id: str):
+    session = transcription_service.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Process any remaining buffered audio before stopping
+    await asyncio.to_thread(transcription_service.process_session_buffer, session_id)
+    session.stop()
+    transcript = session.full_transcript
+    # Keep session around so the user can still fetch the transcript or generate notes
+    return StopTranscriptionResponse(
+        session_id=session.session_id,
+        transcript=transcript,
+        message="Transcription stopped",
+    )
+
+
+@app.get("/transcription/{session_id}", response_model=StopTranscriptionResponse)
+async def transcription_get(session_id: str):
+    session = transcription_service.get_session(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return StopTranscriptionResponse(
+        session_id=session.session_id,
+        transcript=session.full_transcript,
+    )
+
+
+@app.websocket("/transcription/{session_id}/stream")
+async def transcription_stream(websocket: WebSocket, session_id: str):
+    """Receive audio chunks from the client, transcribe, and push text back."""
+    session = transcription_service.get_session(session_id)
+    if session is None:
+        await websocket.close(code=4004, reason="Session not found")
+        return
+
+    await websocket.accept()
+
+    try:
+        while session.state != TranscriptionState.STOPPED:
+            # Receive raw PCM audio bytes from the frontend
+            data = await websocket.receive_bytes()
+            session.append_audio(data)
+
+            # Transcribe the buffered audio
+            new_text = await asyncio.to_thread(
+                transcription_service.process_session_buffer, session_id
+            )
+
+            # Send back incremental + full transcript
+            if new_text:
+                await websocket.send_json({
+                    "chunk": new_text,
+                    "full_transcript": session.full_transcript,
+                })
+    except WebSocketDisconnect:
+        pass
+
+
+# ── Note generation routes ─────────────────────────────────────────────────────
+
+@app.post("/notes/generate", response_model=NoteGenerationResponse)
+async def notes_generate(req: NoteGenerationRequest):
+    if not req.transcript.strip():
+        raise HTTPException(status_code=400, detail="Transcript is empty")
+
+    notes = await asyncio.to_thread(note_service.generate, req.transcript, req.style)
+    return NoteGenerationResponse(notes=notes, style=req.style)

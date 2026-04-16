@@ -1,7 +1,9 @@
 import { useState } from "react";
-import easyTrophy from "../assets/trophy-easy.png";
-import mediumTrophy from "../assets/trophy-medium.png";
-import hardTrophy from "../assets/trophy-hard.png";
+import easyTrophy from "../assets/OkayTrophy.svg";
+import mediumTrophy from "../assets/GoodTrophy.svg";
+import hardTrophy from "../assets/BestTrophy.svg";
+import plusSvg from "../assets/Plus.svg";
+import buttonsSvg from "../assets/buttons.svg";
 
 type Difficulty = "easy" | "medium" | "hard";
 
@@ -104,18 +106,22 @@ function AchievementCard({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full flex-col items-center gap-[0.5em] rounded-xl bg-[var(--customGreen)] p-[0.75em] transition-[opacity,transform] duration-300 hover:scale-[1.04]${unlocked ? "" : " opacity-40"}`}
+      className={`flex w-full flex-col items-center gap-[0.4em] rounded-xl bg-[var(--customGreen)] px-[1em] py-[0.6em] transition-[opacity,transform] duration-300 hover:scale-[1.03]${unlocked ? "" : " opacity-55"}`}
     >
-      <div className="flex w-full items-center justify-center rounded-lg bg-[var(--lighterGreen)] p-[0.75em]">
+      <div className="flex w-full items-center justify-center rounded-lg bg-[var(--lighterGreen)] p-[0.6em]">
         <img
           src={TROPHY_IMG[achievement.difficulty]}
           alt={`${achievement.difficulty} trophy`}
-          className={`h-[clamp(3rem,8cqw,5rem)] w-auto object-contain transition-[filter] duration-300${unlocked ? "" : " grayscale"}`}
+          className={`h-[clamp(3.5rem,12cqw,6rem)] w-auto object-contain transition-[filter] duration-300${unlocked ? "" : " grayscale-[60%]"}`}
         />
       </div>
-      <span className="text-center text-[0.95em] font-medium text-[var(--classicWhite)]">
+      <span className="text-center text-[1em] font-semibold text-[var(--classicWhite)]">
         {achievement.title}
       </span>
+      <div className="flex w-full items-center justify-between px-[0.5em]">
+        <img src={plusSvg} alt="" className="h-[1.2em] w-auto object-contain opacity-60" />
+        <img src={buttonsSvg} alt="" className="h-[1.2em] w-auto object-contain opacity-60" />
+      </div>
     </button>
   );
 }
@@ -176,7 +182,7 @@ export default function AchievementsScreen({
                 disabled={page === 0}
                 className="cursor-pointer rounded-xl bg-[var(--customGreen)] px-[1em] py-[0.4em] text-[1.1em] font-bold text-[var(--classicWhite)] shadow-md transition-[opacity,transform] duration-200 hover:scale-[1.06] disabled:cursor-default disabled:opacity-30"
               >
-                ←
+                &lt;
               </button>
               <span className="text-[0.95em] font-medium text-[var(--customGreen)]">
                 {page + 1} / {totalPages}
@@ -187,7 +193,7 @@ export default function AchievementsScreen({
                 disabled={page === totalPages - 1}
                 className="cursor-pointer rounded-xl bg-[var(--customGreen)] px-[1em] py-[0.4em] text-[1.1em] font-bold text-[var(--classicWhite)] shadow-md transition-[opacity,transform] duration-200 hover:scale-[1.06] disabled:cursor-default disabled:opacity-30"
               >
-                →
+                &gt;
               </button>
             </div>
           )}
